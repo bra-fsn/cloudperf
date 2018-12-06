@@ -1,3 +1,6 @@
+FROM docker.io/project31/aarch64-alpine-qemu:3.5
+RUN [ “cross-build-start” ]
+
 FROM arm64v8/debian:stretch-20181112 as builder
 
 # intall gcc and supporting packages
@@ -22,3 +25,4 @@ FROM scratch
 COPY --from=builder /code/stress-ng/stress-ng /
 
 ENTRYPOINT ["/stress-ng"]
+RUN [ “cross-build-end” ]
