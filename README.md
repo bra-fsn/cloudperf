@@ -1,1 +1,1 @@
-# ec2bench
+# cloudperf
