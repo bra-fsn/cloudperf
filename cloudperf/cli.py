@@ -53,7 +53,7 @@ def write_performance(file):
 def prices(prices, cols, sort):
     df = get_prices(prices)
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-        print(df.sort_values(list(sort))[list(cols)])
+        print(df.sort_values(list(sort))[list(cols)].to_string(index=False))
 
 
 @main.command()
@@ -65,4 +65,4 @@ def prices(prices, cols, sort):
 def performance(perf, cols, sort):
     df = get_performance(perf)
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-        print(df.sort_values(list(sort))[list(cols)])
+        print(df.sort_values(list(sort))[list(cols)].to_string(index=False))
