@@ -37,9 +37,9 @@ def get_prices(prices=None, update=False):
     return pd.concat([cp.get_prices() for cp in get_providers()], ignore_index=True, sort=False)
 
 
-def get_performance(perf=None, update=False):
+def get_performance(prices=None, perf=None, update=False):
     if not perf:
-        return pd.concat([cp.get_performance() for cp in get_providers()], ignore_index=True, sort=False)
+        return pd.concat([cp.get_performance(get_prices(prices)) for cp in get_providers()], ignore_index=True, sort=False)
     return pd.read_json(perf, orient='records')
 
 

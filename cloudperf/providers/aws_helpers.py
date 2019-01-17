@@ -1,9 +1,11 @@
 from __future__ import absolute_import
+import base64
 import re
 import json
 import time
 import threading
 import logging
+from logging import NullHandler
 import copy
 from datetime import datetime
 from io import StringIO
@@ -17,6 +19,8 @@ from botocore.exceptions import ClientError
 from cloudperf.benchmarks import benchmarks
 
 session = boto3.session.Session()
+logger = logging.getLogger(__name__)
+logger.addHandler(NullHandler())
 
 # static map until Amazon can provide the name in boto3 along with the region
 # code...
@@ -55,6 +59,7 @@ ec2_specs = {'KeyName': ssh_keyname, 'SecurityGroups': ['tech-ssh'],
                                     'Tags': [{'Value': 'cloudperf', 'Key': 'Application'}]}]}
 
 stop_services_cmd = "sudo systemctl | grep running | awk '{print $1}' | egrep -v '(auditd|dbus|docker|syslog|sshd|systemd|\.scope|network\.service)' | xargs sudo systemctl stop"
+
 
 class DictQuery(dict):
     def get(self, keys, default=None):
@@ -124,8 +129,12 @@ def aws_get_cpu_arch(instance):
     # but until that...
     physproc = DictQuery(instance).get(['product', 'attributes', 'physicalProcessor'], '').lower()
     procarch = DictQuery(instance).get(['product', 'attributes', 'processorArchitecture'], '').lower()
-    if physproc == 'aws processor' and procarch == '64-bit':
+    instance_type = DictQuery(instance).get(['product', 'attributes', 'instanceType'], '').lower()
+
+    if re.match('^a[0-9]\.', instance_type) or re.search('aws\s+(graviton|)\s*processor', physproc):
+        # try to find arm instances
         return 'arm64'
+
     return 'x86_64'
 
 
@@ -328,7 +337,7 @@ def get_ssh_connection(instance, user, pkey, timeout):
             ssh.connect(instance['PrivateIpAddress'], username=user, pkey=pkey, timeout=10, auth_timeout=10)
             break
         except Exception as e:
-            logging.debug("Couldn't connect to {}, {}, retrying for {:.0f}s".format(
+            logger.debug("Couldn't connect to {}, {}, retrying for {:.0f}s".format(
                 instance['InstanceId'], e, start+timeout-time.time()))
             time.sleep(5)
     else:
@@ -366,14 +375,14 @@ def run_benchmarks(ami, instance):
         except ClientError as e:
             # retry on request limit exceeded
             if e.response['Error']['Code'] == 'RequestLimitExceeded':
-                logging.debug("Request limit for {}: {}, retry #{}".format(instance.instanceType,
+                logger.debug("Request limit for {}: {}, retry #{}".format(instance.instanceType,
                                                                            e.response['Error']['Message'], retcount))
                 time.sleep(1.2**retcount)
                 retcount += 1
                 continue
 
             if e.response['Error']['Code'] == 'InsufficientInstanceCapacity':
-                logging.debug('Insufficient spot capacity for {}: {}'.format(
+                logger.debug('Insufficient spot capacity for {}: {}'.format(
                     instance.instanceType, e))
                 # retry with on demand
                 create_specs = specs
@@ -385,10 +394,10 @@ def run_benchmarks(ami, instance):
                     # the actual spot price is the second, extract it
                     sp = re.findall('[0-9]+\.[0-9]+',
                                     e.response['Error']['Message'])[1]
-                    logging.debug(
+                    logger.debug(
                         "Spot price too low spotmax:{}, current price:{}".format(instance.price, sp))
                 except Exception:
-                    logging.debug("Spot price too low for {}, {}".format(
+                    logger.debug("Spot price too low for {}, {}".format(
                         instance.instanceType, e.response['Error']['Message']))
                 # retry with on demand
                 create_specs = specs
@@ -397,23 +406,30 @@ def run_benchmarks(ami, instance):
 
             if e.response['Error']['Code'] == 'MissingParameter':
                 # this can't be fixed, exit
-                logging.error("Missing parameter while creating {}: {}".format(
+                logger.error("Missing parameter while creating {}: {}".format(
                     instance.instanceType, e))
                 break
 
             if e.response['Error']['Code'] == 'InvalidParameterValue':
                 # certain instances are not allowed to be created
-                logging.error("Error starting instance {}: {}".format(
+                logger.error("Error starting instance {}: {}".format(
                     instance.instanceType, e.response['Error']['Message']))
                 break
 
-            logging.error("Other error while creating {}: {}".format(
-                instance.instanceType, e))
+            if e.response['Error']['Code'] == 'Unsupported':
+                # certain instances are not allowed to be created
+                logger.error("Unsupported instance {}: {}, specs: {}".format(
+                    instance.instanceType, e.response['Error']['Message'],
+                    base64.b64encode(str(create_specs))))
+                break
+
+            logger.error("Other error while creating {}: {}, code: {}".format(
+                instance.instanceType, e, DictQuery(e.response).get(['Error', 'Code'])))
             time.sleep(1.2**retcount)
             retcount += 1
 
         except Exception as e:
-            logging.error("Other exception while creating {}: {}".format(
+            logger.error("Other exception while creating {}: {}".format(
                 instance.instanceType, e))
             time.sleep(1.2**retcount)
             retcount += 1
@@ -423,7 +439,7 @@ def run_benchmarks(ami, instance):
 
     instance_id = ec2_inst['InstanceId']
 
-    logging.info(
+    logger.info(
         "Waiting for instance {}/{} to be ready".format(instance.instanceType, instance_id))
     # wait for the instance
     try:
@@ -434,7 +450,7 @@ def run_benchmarks(ami, instance):
             'MaxAttempts': 120
             })
     except Exception:
-        logging.exception(
+        logger.exception(
             'Waiter failed for {}/{}'.format(instance.instanceType, instance_id))
 
     # give 5 secs before trying ssh
@@ -443,7 +459,7 @@ def run_benchmarks(ami, instance):
         StringIO(aws_get_parameter('/ssh_keys/{}'.format(ssh_keyname))))
     ssh = get_ssh_connection(ec2_inst, ssh_user, pkey, ssh_get_conn_timeout)
     if ssh is None:
-        logging.error(
+        logger.error(
             "Couldn't open an ssh connection to {}, terminating instance".format(instance_id))
         ec2.terminate_instances(InstanceIds=[instance_id])
         return None
@@ -453,37 +469,41 @@ def run_benchmarks(ami, instance):
 
     # try stop all unnecessary services in order to provide a more reliable result
     for i in range(4):
-        logging.debug("Trying to stop services on {}, try #{}".format(instance_id, i))
+        logger.debug("Trying to stop services on {}, try #{}".format(instance_id, i))
         stdin, stdout, stderr = ssh.exec_command(stop_services_cmd)
         if stdout.channel.recv_exit_status() == 0:
             break
         time.sleep(5)
     else:
         # log, but don't fail
-        logging.error("Couldn't stop services on {}: {}, {}".format(
+        logger.error("Couldn't stop services on {}: {}, {}".format(
             instance_id, stdout.read(), stderr.read()))
 
     results = []
     for name, bench_data in benchmarks.items():
         docker_img = bench_data['images'].get(instance.cpu_arch, None)
         if not docker_img:
-            logging.error("Couldn't find docker image for {}/{}".format(name, instance.cpu_arch))
+            logger.error("Couldn't find docker image for {}/{}".format(name, instance.cpu_arch))
             continue
         # docker pull and wait some time
         for i in range(4):
-            logging.debug("Docker pull on {}, try #{}".format(instance_id, i))
+            logger.debug("Docker pull on {}, try #{}".format(instance_id, i))
             stdin, stdout, stderr = ssh.exec_command("docker pull {}; sync; sleep 10".format(docker_img))
             if stdout.channel.recv_exit_status() == 0:
                 break
             time.sleep(5)
         else:
-            logging.error("Couldn't pull docker image on {}: {}, {}".format(
+            logger.error("Couldn't pull docker image on {}: {}, {}".format(
                 instance_id, stdout.read(), stderr.read()))
 
-        for i in range(1, instance.vcpu+1):
+        if 'cpus' in bench_data and bench_data['cpus']:
+            cpulist = bench_data['cpus']
+        else:
+            cpulist = range(1, instance.vcpu+1)
+        for i in cpulist:
             dcmd = bench_data['cmd'].format(numcpu=i)
             cmd = 'docker run --network none --rm {} {}'.format(docker_img, dcmd)
-            logging.debug("Benchmark run on {}, command: {}".format(instance_id, cmd))
+            logger.debug("Benchmark run on {}, command: {}".format(instance_id, cmd))
             stdin, stdout, stderr = ssh.exec_command(cmd)
             ec = stdout.channel.recv_exit_status()
             stdo = stdout.read()
@@ -496,32 +516,33 @@ def run_benchmarks(ami, instance):
                                     'benchmark_name': bench_data.get('name'),
                                     'benchmark_cmd': cmd, 'benchmark_program': bench_data.get('program')})
                 except Exception:
-                    logging.debug(
+                    logger.debug(
                         "Couldn't parse output on {}, {}".format(instance_id, stdo))
             else:
-                logging.debug("Non-zero exit code on {}, {}, {}, {}".format(instance_id, ec, stdo, stdrr))
+                logger.debug("Non-zero exit code on {}, {}, {}, {}".format(instance_id, ec, stdo, stdrr))
+
+    logger.debug("Finished with instance {}, terminating".format(instance_id))
+    ec2.terminate_instances(InstanceIds=[instance_id])
 
     return pd.DataFrame.from_dict(results)
 
 
-def get_ec2_performance(**filter_opts):
-    df = pd.read_json('file:///tmp/prices.json.gz', orient='records')
-    #df = get_ec2_prices(**filter_opts)
-
+def get_ec2_performance(prices_df, **filter_opts):
     # drop spot instances
-    df = df.drop(df[df.spot == True].index)
+    prices_df = prices_df.drop(prices_df[prices_df.spot == True].index)
     # remove duplicate instances, so we'll have a list of on-demand instances
     # with their prices
-    df = df.drop_duplicates(subset='instanceType')
+    prices_df = prices_df.drop_duplicates(subset='instanceType')
 
     results = []
-    for instance in df.itertuples():
+    for instance in prices_df.itertuples():
         ami = aws_get_latest_ami(arch=instance.cpu_arch)
-        if instance.instanceType not in ('t3.large', 'a1.large'):
+        #if instance.instanceType not in ('t3.large', 'a1.large'):
+        if instance.instanceType not in ['t3.xlarge']:
             continue
         benchdf = run_benchmarks(ami, instance)
         if benchdf is None:
-            logging.error("Couldn't run benchmark for instance {}".format(instance.instanceType))
+            logger.error("Couldn't run benchmark for instance {}".format(instance.instanceType))
         else:
             results.append(benchdf)
 

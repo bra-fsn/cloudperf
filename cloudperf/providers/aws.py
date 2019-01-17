@@ -22,10 +22,10 @@ class CloudProvider(object):
 
         return instances
 
-    def get_performance(self, **filters):
+    def get_performance(self, prices_df, **filters):
         if not filters:
             filters = self.filters
-        instances = aws_helpers.get_ec2_performance(**filters)
+        instances = aws_helpers.get_ec2_performance(prices_df, **filters)
         # place the current time as a timestamp
         instances['updated_at'] = datetime.now()
         # add a provider column
