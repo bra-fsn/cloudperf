@@ -2,10 +2,10 @@
 
 import logging
 from cloudperf.cli import main
-logging.getLogger("root").setLevel(logging.WARNING)
-# logging.basicConfig(level=logging.DEBUG)
-# logging.getLogger("urllib3").setLevel(logging.WARNING)
-# logging.getLogger("paramiko").setLevel(logging.WARNING)
+logging.basicConfig(level=logging.DEBUG)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+logging.getLogger("paramiko").setLevel(logging.WARNING)
+logging.getLogger("botocore").setLevel(logging.WARNING)
 
 if __name__ == '__main__':
 
