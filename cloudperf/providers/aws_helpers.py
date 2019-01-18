@@ -355,6 +355,10 @@ def run_benchmarks(ami, instance):
         pass
     specs.update({'BlockDeviceMappings': bdmap,
                   'ImageId': ami['ImageId'], 'InstanceType': instance.instanceType})
+    # add unlimited cpu credits on burstable type instances, so these won't affect
+    # benchmark results
+    if re.match('^t[0-9]+\.', instance.instanceType):
+        specs.update({'CreditSpecification': {'CpuCredits': 'unlimited'}})
     spotspecs = copy.deepcopy(specs)
     spotspecs.update({'InstanceMarketOptions': {'MarketType': 'spot',
                                                 'SpotOptions': {
