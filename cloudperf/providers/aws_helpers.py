@@ -131,7 +131,7 @@ def aws_get_cpu_arch(instance):
     procarch = DictQuery(instance).get(['product', 'attributes', 'processorArchitecture'], '').lower()
     instance_type = DictQuery(instance).get(['product', 'attributes', 'instanceType'], '').lower()
 
-    if re.match('^a[0-9]\.', instance_type) or re.search('aws\s+(graviton|)\s*processor', physproc):
+    if re.match('^a[0-9]+\.', instance_type) or re.search('aws\s+(graviton|)\s*processor', physproc):
         # try to find arm instances
         return 'arm64'
 
