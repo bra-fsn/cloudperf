@@ -15,19 +15,19 @@ class CloudProvider(object):
         if not filters:
             filters = self.filters
         instances = aws_helpers.get_ec2_prices(**filters)
-        # place the current time as a timestamp
-        instances['updated_at'] = datetime.now()
         # add a provider column
         instances['provider'] = self.provider
 
         return instances
 
-    def get_performance(self, prices_df, **filters):
+    def get_performance(self, prices_df, perf_df=None, update=None, expire=None, **filters):
         if not filters:
             filters = self.filters
-        instances = aws_helpers.get_ec2_performance(prices_df, **filters)
-        # place the current time as a timestamp
-        instances['updated_at'] = datetime.now()
+        # only pass our records
+        prices_df = prices_df[prices_df['provider'] == self.provider]
+        if perf_df is not None:
+            perf_df = perf_df[perf_df['provider'] == self.provider]
+        instances = aws_helpers.get_ec2_performance(prices_df, perf_df, update, expire, **filters)
         # add a provider column
         instances['provider'] = self.provider
 

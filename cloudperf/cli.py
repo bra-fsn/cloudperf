@@ -1,6 +1,7 @@
 import os
 import click
 import pandas as pd
+import pytimeparse
 from cloudperf import get_prices, get_performance
 
 
@@ -31,7 +32,11 @@ def write_prices(file, update):
 @main.command()
 @click.option('--prices', help='Prices URL (pandas.read_json)', required=True)
 @click.option('--file', help='Write performance data to this file', required=True)
-def write_performance(prices, file):
+@click.option('--update/--no-update',
+              help='Read file first and update it with new data, leaving disappeared entries there for historical reasons',
+              default=True, show_default=True)
+@click.option('--expire', help='Re-run benchmarks after this time', default='4w', show_default=True)
+def write_performance(prices, file, update, expire):
     fn, ext = os.path.splitext(file)
     comp = None
     try:
@@ -42,7 +47,9 @@ def write_performance(prices, file):
             comp = 'gzip'
     except Exception:
         pass
-    get_performance(prices).to_json(file, orient='records', compression=comp, date_unit='s')
+    # convert human readable to seconds
+    expire = pytimeparse.parse(expire)
+    get_performance(prices, file, update, expire).to_json(file, orient='records', compression=comp, date_unit='s')
 
 
 @main.command()

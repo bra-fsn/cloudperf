@@ -37,10 +37,21 @@ def get_prices(prices=None, update=False):
     return pd.concat([cp.get_prices() for cp in get_providers()], ignore_index=True, sort=False)
 
 
-def get_performance(prices=None, perf=None, update=False):
-    if not perf:
-        return pd.concat([cp.get_performance(get_prices(prices)) for cp in get_providers()], ignore_index=True, sort=False)
-    return pd.read_json(perf, orient='records')
+def get_performance(prices=None, perf=None, update=False, expire=False):
+    # if we got a stored file and update is True, merge the two by overwriting
+    # old data with new (and leaving not updated old data intact).
+    # if expire is set only update old data if the expiry period is passed
+    if perf and update:
+        old = pd.read_json(perf, orient='records')
+        new = pd.concat([cp.get_performance(get_prices(prices), old, update, expire) for cp in get_providers()],
+                        ignore_index=True, sort=False)
+        return new.combine_first(old)
+    if perf:
+        try:
+            return pd.read_json(perf, orient='records')
+        except Exception:
+            pass
+    return pd.concat([cp.get_performance(get_prices(prices)) for cp in get_providers()], ignore_index=True, sort=False)
 
 
 def get_perfprice(prices=None, perf=None):

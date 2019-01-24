@@ -310,7 +310,7 @@ def get_ec2_prices(**filter_opts):
         params[instance_type] = data['product']['attributes']
         params[instance_type].update({'vcpu': vcpu, 'memory': memory, 'region': region,
                                       'cpu_arch': aws_get_cpu_arch(data),
-                                      'date': int(time.time())})
+                                      'date': datetime.now()})
         d = {'price': price, 'spot': False, 'spot-az': None}
         d.update(params[instance_type])
         prices.append(d)
@@ -349,7 +349,7 @@ def get_ssh_connection(instance, user, pkey, timeout):
 
 
 def run_benchmarks(args):
-    ami, instance = args
+    ami, instance, benchmarks_to_run = args
     specs = copy.deepcopy(ec2_specs)
     bdmap = ami['BlockDeviceMappings']
     try:
@@ -488,7 +488,7 @@ def run_benchmarks(args):
             instance_id, stdout.read(), stderr.read()))
 
     results = []
-    for name, bench_data in benchmarks.items():
+    for name, bench_data in benchmarks_to_run.items():
         docker_img = bench_data['images'].get(instance.cpu_arch, None)
         if not docker_img:
             logger.error("Couldn't find docker image for {}/{}".format(name, instance.cpu_arch))
@@ -513,7 +513,7 @@ def run_benchmarks(args):
             cmd = 'docker run --network none --rm {} {}'.format(docker_img, dcmd)
             scores = []
             for it in range(bench_data.get('iterations', 3)):
-                logger.debug("Benchmark run on {}, command: {}, iteration: #{}".format(instance_id, cmd, it))
+                logger.debug("Running on {}, command: {}, iter: #{}".format(instance_id, cmd, it))
                 stdin, stdout, stderr = ssh.exec_command(cmd)
                 ec = stdout.channel.recv_exit_status()
                 stdo = stdout.read()
@@ -532,7 +532,7 @@ def run_benchmarks(args):
                             'benchmark_cpus': i, 'benchmark_score': score, 'benchmark_id': name,
                             'benchmark_name': bench_data.get('name'),
                             'benchmark_cmd': cmd, 'benchmark_program': bench_data.get('program'),
-                            'date': int(time.time())})
+                            'date': datetime.now()})
 
     logger.debug("Finished with instance {}, terminating".format(instance_id))
     ec2.terminate_instances(InstanceIds=[instance_id])
@@ -540,21 +540,46 @@ def run_benchmarks(args):
     return pd.DataFrame.from_dict(results)
 
 
-def get_ec2_performance(prices_df, **filter_opts):
+def get_benchmarks_to_run(instance, perf_df, expire):
+    my_benchmarks = copy.deepcopy(benchmarks)
+    # filter the incoming perf data only to our instance type
+    perf_df = perf_df[perf_df['instanceType'] == instance.instanceType][['instanceType', 'benchmark_id', 'date']].drop_duplicates()
+    for idx, row in perf_df.iterrows():
+        if (datetime.now() - row.date).seconds >= expire:
+            # leave the benchmark if it's not yet expired ...
+            continue
+        # ... and drop, if it is
+        my_benchmarks.pop(row.benchmark_id, None)
+
+    return my_benchmarks
+
+
+def get_ec2_performance(prices_df, perf_df=None, update=None, expire=None, **filter_opts):
     # drop spot instances
     prices_df = prices_df.drop(prices_df[prices_df.spot == True].index)
-    # remove duplicate instances, so we'll have a list of on-demand instances
-    # with their prices
+    # remove duplicate instances, so we'll have a list of all on-demand instances
     prices_df = prices_df.drop_duplicates(subset='instanceType')
 
     bench_args = []
     for instance in prices_df.itertuples():
         ami = aws_get_latest_ami(arch=instance.cpu_arch)
-        if instance.instanceType not in ('t3.xlarge', 'a1.xlarge', 'm5d.xlarge'):
-        #if instance.instanceType not in ['a1.xlarge']:
-            continue
-        bench_args.append([ami, instance])
-    pool = ThreadPool(32)
-    results = pool.map(run_benchmarks, bench_args)
+        if perf_df is not None and update:
+            benchmarks_to_run = get_benchmarks_to_run(instance, perf_df, expire)
+        else:
+            benchmarks_to_run = benchmarks
 
-    return pd.concat(results, ignore_index=True, sort=False)
+        if not benchmarks_to_run:
+            # leave this instance out if there is no benchmark to run
+            continue
+        if instance.instanceType not in ('t3.xlarge', 'a1.xlarge', 'm5d.xlarge', 'm5d.4xlarge'):
+            continue
+        print(instance.instanceType, len(benchmarks_to_run))
+        #continue
+        ami = aws_get_latest_ami(arch=instance.cpu_arch)
+        bench_args.append([ami, instance, benchmarks_to_run])
+    if bench_args:
+        pool = ThreadPool(32)
+        results = pool.map(run_benchmarks, bench_args)
+        return pd.concat(results, ignore_index=True, sort=False)
+    else:
+        return pd.DataFrame({})
