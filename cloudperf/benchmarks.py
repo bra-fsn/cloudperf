@@ -1,13 +1,29 @@
 # This is a python file, defining benchmarks to run on each cloud instances.
-# Images specify the docker images to run (keyed by the CPU architecture),
-# cmd is the command which is given to docker run.
-# The command should output a single number, which can be parsed with python's
-# `float`. It will be the benchmark's score.
-# If there is no `cpus` option is given to the benchmark, the command will be run
-# once for each CPU. So if the machine has 8 CPUs, this means 8 times.
-# The actual number of CPUs is available in the {numcpu} variable, which will
-# be 1, 2, 3, 4, 5, 6, 7, 8 in this case.
-# `cpus` can be a list, for eg.: 'cpus': [1, 2, 4, 8, 16]
+# Each benchmark must have a unique name as the dictionary key, which should
+# contain a dictionary for each benchmarks, with the following keys:
+#   - `program`: the name of the benchmark program (informative, not used for execution)
+#   - `name`: the verbose name of the benchmark
+#   - `images`: another, architecture-name keyed dictionary, which defines a docker image
+#               for each architecture
+#   - `cmd`: the command to be passed to the docker image. Variable expansion
+#            is available here with the following variables:
+#               - `numcpu`: the excercised number of CPUs (if the benchmark can
+#                           utilize more CPUs, it can be limited to that number).
+#                           Without any other settings, the command will be invoked
+#                           once for each CPUs, with an increasing number in `numcpu`
+#            The variable expansion works by using `{numcpu}` in the command.
+#            Due to this, `{}` must be escaped as `{{}}`.
+#            The command must output a single number, parseable with python's
+#            `float`, which will be the benchmark's score.
+#   - `cpus`: if not specified, the command will be run once for each CPU, having
+#             the actual number of CPUs in the `numcpu` variable. For a 8 CPU
+#             machine it means 8 runs with `numcpu` being 1,2,3,4,5,6,7,8.
+#             `cpus` can be a python list, eg: 'cpus': [1,2,4,8,16]
+#   - `iterations`: the benchmark will be runned this many times (for each CPUs)
+#                   in order to have more measure points. Default: 3.
+#   - `score_aggregation`: this python function will be used to aggregating the
+#                          scores from the above iterations. The scores will be
+#                          passed as a list of floats. Default: max
 
 benchmarks = {
     'sng_matrixprod': {'program': 'stress-ng',
