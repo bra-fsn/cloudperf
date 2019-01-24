@@ -35,7 +35,7 @@ def write_prices(file, update):
 @click.option('--update/--no-update',
               help='Read file first and update it with new data, leaving disappeared entries there for historical reasons',
               default=True, show_default=True)
-@click.option('--expire', help='Re-run benchmarks after this time', default='4w', show_default=True)
+@click.option('--expire', help='Re-run benchmarks after this time', default='12w', show_default=True)
 def write_performance(prices, file, update, expire):
     fn, ext = os.path.splitext(file)
     comp = None
