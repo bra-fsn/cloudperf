@@ -50,7 +50,7 @@ def write_performance(prices, file):
 @click.option('--cols', help='Columns to show', default=['instanceType', 'region', 'spot-az',
                                                          'vcpu', 'memory', 'price'],
               show_default=True, multiple=True)
-@click.option('--sort', help='Sort by this column', default=['price'], multiple=True, show_default=True)
+@click.option('--sort', help='Sort by these columns', default=['price'], multiple=True, show_default=True)
 def prices(prices, cols, sort):
     df = get_prices(prices)
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):
@@ -63,7 +63,7 @@ def prices(prices, cols, sort):
 @click.option('--cols', help='Columns to show', default=['instanceType', 'benchmark_id', 'benchmark_cpus',
                                                          'benchmark_score'],
               show_default=True, multiple=True)
-@click.option('--sort', help='Sort by this column', default=['benchmark_score'], multiple=True, show_default=True)
+@click.option('--sort', help='Sort by these columns', default=['benchmark_score'], multiple=True, show_default=True)
 def performance(prices, perf, cols, sort):
     df = get_performance(prices, perf)
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):
