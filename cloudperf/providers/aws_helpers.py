@@ -308,7 +308,9 @@ def get_ec2_prices(**filter_opts):
         memory = aws_parse_memory(data['product']['attributes']['memory'])
         region = region_map.get(data['product']['attributes']['location'])
         params[instance_type] = data['product']['attributes']
-        params[instance_type].update({'vcpu': vcpu, 'memory': memory, 'region': region, 'cpu_arch': aws_get_cpu_arch(data)})
+        params[instance_type].update({'vcpu': vcpu, 'memory': memory, 'region': region,
+                                      'cpu_arch': aws_get_cpu_arch(data),
+                                      'date': int(time.time())})
         d = {'price': price, 'spot': False, 'spot-az': None}
         d.update(params[instance_type])
         prices.append(d)
@@ -529,7 +531,8 @@ def run_benchmarks(args):
             results.append({'instanceType': instance.instanceType,
                             'benchmark_cpus': i, 'benchmark_score': score, 'benchmark_id': name,
                             'benchmark_name': bench_data.get('name'),
-                            'benchmark_cmd': cmd, 'benchmark_program': bench_data.get('program')})
+                            'benchmark_cmd': cmd, 'benchmark_program': bench_data.get('program'),
+                            'date': int(time.time())})
 
     logger.debug("Finished with instance {}, terminating".format(instance_id))
     ec2.terminate_instances(InstanceIds=[instance_id])
