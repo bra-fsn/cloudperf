@@ -9,6 +9,7 @@ from logging import NullHandler
 import copy
 from datetime import datetime
 from io import StringIO
+from multiprocessing.pool import ThreadPool
 import boto3
 import cachetools
 import requests
@@ -345,7 +346,8 @@ def get_ssh_connection(instance, user, pkey, timeout):
     return ssh
 
 
-def run_benchmarks(ami, instance):
+def run_benchmarks(args):
+    ami, instance = args
     specs = copy.deepcopy(ec2_specs)
     bdmap = ami['BlockDeviceMappings']
     try:
@@ -507,23 +509,27 @@ def run_benchmarks(ami, instance):
         for i in cpulist:
             dcmd = bench_data['cmd'].format(numcpu=i)
             cmd = 'docker run --network none --rm {} {}'.format(docker_img, dcmd)
-            logger.debug("Benchmark run on {}, command: {}".format(instance_id, cmd))
-            stdin, stdout, stderr = ssh.exec_command(cmd)
-            ec = stdout.channel.recv_exit_status()
-            stdo = stdout.read()
-            stdrr = stderr.read()
-            if ec == 0:
-                try:
-                    score = float(stdo)
-                    results.append({'instanceType': instance.instanceType,
-                                    'benchmark_cpus': i, 'benchmark_score': score, 'benchmark_id': name,
-                                    'benchmark_name': bench_data.get('name'),
-                                    'benchmark_cmd': cmd, 'benchmark_program': bench_data.get('program')})
-                except Exception:
-                    logger.debug(
-                        "Couldn't parse output on {}, {}".format(instance_id, stdo))
-            else:
-                logger.debug("Non-zero exit code on {}, {}, {}, {}".format(instance_id, ec, stdo, stdrr))
+            scores = []
+            for it in range(bench_data.get('iterations', 3)):
+                logger.debug("Benchmark run on {}, command: {}, iteration: #{}".format(instance_id, cmd, it))
+                stdin, stdout, stderr = ssh.exec_command(cmd)
+                ec = stdout.channel.recv_exit_status()
+                stdo = stdout.read()
+                stdrr = stderr.read()
+                if ec == 0:
+                    try:
+                        scores.append(float(stdo))
+                    except Exception:
+                        logger.debug(
+                            "Couldn't parse output on {}, {}".format(instance_id, stdo))
+                else:
+                    logger.debug("Non-zero exit code on {}, {}, {}, {}".format(instance_id, ec, stdo, stdrr))
+            aggr_f = bench_data.get('score_aggregation', max)
+            score = aggr_f(scores)
+            results.append({'instanceType': instance.instanceType,
+                            'benchmark_cpus': i, 'benchmark_score': score, 'benchmark_id': name,
+                            'benchmark_name': bench_data.get('name'),
+                            'benchmark_cmd': cmd, 'benchmark_program': bench_data.get('program')})
 
     logger.debug("Finished with instance {}, terminating".format(instance_id))
     ec2.terminate_instances(InstanceIds=[instance_id])
@@ -538,16 +544,14 @@ def get_ec2_performance(prices_df, **filter_opts):
     # with their prices
     prices_df = prices_df.drop_duplicates(subset='instanceType')
 
-    results = []
+    bench_args = []
     for instance in prices_df.itertuples():
         ami = aws_get_latest_ami(arch=instance.cpu_arch)
-        #if instance.instanceType not in ('t3.large', 'a1.large'):
-        if instance.instanceType not in ['t3.xlarge']:
+        if instance.instanceType not in ('t3.xlarge', 'a1.xlarge', 'm5d.xlarge'):
+        #if instance.instanceType not in ['a1.xlarge']:
             continue
-        benchdf = run_benchmarks(ami, instance)
-        if benchdf is None:
-            logger.error("Couldn't run benchmark for instance {}".format(instance.instanceType))
-        else:
-            results.append(benchdf)
+        bench_args.append([ami, instance])
+    pool = ThreadPool(32)
+    results = pool.map(run_benchmarks, bench_args)
 
     return pd.concat(results, ignore_index=True, sort=False)
