@@ -524,6 +524,7 @@ def run_benchmarks(args):
                     except Exception:
                         logger.debug(
                             "Couldn't parse output on {}, {}".format(instance_id, stdo))
+                        scores.append(None)
                 else:
                     logger.debug("Non-zero exit code on {}, {}, {}, {}".format(instance_id, ec, stdo, stdrr))
             aggr_f = bench_data.get('score_aggregation', max)

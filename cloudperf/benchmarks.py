@@ -15,6 +15,10 @@
 #            Due to this, `{}` must be escaped as `{{}}`.
 #            The command must output a single number, parseable with python's
 #            `float`, which will be the benchmark's score.
+#            If the output can't be parsed with `float`, a `None` will be inserted,
+#            so if the benchmark couldn't run on that instance (for example because
+#            it doesn't have the needed amount of memory), we won't re-run the
+#            benchmark forever, only after the expiration period is over.
 #   - `cpus`: if not specified, the command will be run once for each CPU, having
 #             the actual number of CPUs in the `numcpu` variable. For a 8 CPU
 #             machine it means 8 runs with `numcpu` being 1,2,3,4,5,6,7,8.
@@ -24,6 +28,9 @@
 #   - `score_aggregation`: this python function will be used to aggregating the
 #                          scores from the above iterations. The scores will be
 #                          passed as a list of floats. Default: max
+#                          WARNING: as stated above, given (or all) iterations
+#                          can return `None`, so the aggregation function must be
+#                          able to cope with that.
 
 benchmarks = {
     'sng_matrixprod': {'program': 'stress-ng',
