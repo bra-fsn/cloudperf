@@ -5,6 +5,9 @@ import cloudperf.providers
 import cachetools
 import pandas as pd
 
+prices_url = 'https://cloudperf-data.s3-us-west-2.amazonaws.com/prices.json.gz'
+performance_url = 'https://cloudperf-data.s3-us-west-2.amazonaws.com/performance.json.gz'
+
 
 @cachetools.cached(cache={})
 def get_providers():
@@ -23,17 +26,15 @@ def get_prices(prices=None, update=False):
     # if we got a stored file and update is True, merge the two by overwriting
     # old data with new (and leaving not updated old data intact)
     if prices and update:
-        try:
-            old = pd.read_json(prices, orient='records')
-            new = pd.concat([cp.get_prices() for cp in get_providers()], ignore_index=True, sort=False)
-            return new.combine_first(old)
-        except Exception:
-            pass
+        old = pd.read_json(prices, orient='records')
+        new = pd.concat([cp.get_prices() for cp in get_providers()], ignore_index=True, sort=False)
+        if new.empty:
+            return old
+        # update rows which have the same values in the following columns
+        indices = ['provider', 'instanceType', 'region', 'spot', 'spot-az']
+        return new.set_index(indices).combine_first(old.set_index(indices)).reset_index()
     if prices:
-        try:
-            return pd.read_json(prices, orient='records')
-        except Exception:
-            pass
+        return pd.read_json(prices, orient='records')
     return pd.concat([cp.get_prices() for cp in get_providers()], ignore_index=True, sort=False)
 
 
@@ -45,12 +46,13 @@ def get_performance(prices=None, perf=None, update=False, expire=False):
         old = pd.read_json(perf, orient='records')
         new = pd.concat([cp.get_performance(get_prices(prices), old, update, expire) for cp in get_providers()],
                         ignore_index=True, sort=False)
-        return new.combine_first(old)
+        if new.empty:
+            return old
+        # update rows which have the same values in the following columns
+        indices = ['provider', 'instanceType', 'benchmark_id', 'benchmark_cpus']
+        return new.set_index(indices).combine_first(old.set_index(indices)).reset_index()
     if perf:
-        try:
-            return pd.read_json(perf, orient='records')
-        except Exception:
-            pass
+        return pd.read_json(perf, orient='records')
     return pd.concat([cp.get_performance(get_prices(prices)) for cp in get_providers()], ignore_index=True, sort=False)
 
 

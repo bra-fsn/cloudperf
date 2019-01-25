@@ -2,7 +2,8 @@ import os
 import click
 import pandas as pd
 import pytimeparse
-from cloudperf import get_prices, get_performance
+import boto3
+from cloudperf import get_prices, get_performance, prices_url, performance_url
 
 
 @click.group()
@@ -11,11 +12,13 @@ def main():
 
 
 @main.command()
+@click.option('--prices', help='Prices URL (pandas.read_json)', default=prices_url, show_default=True)
 @click.option('--file', help='Write prices to this file', required=True)
+@click.option('--s3-bucket', help='Write prices to this s3 bucket')
 @click.option('--update/--no-update',
               help='Read file first and update it with new data, leaving disappeared entries there for historical reasons',
               default=True, show_default=True)
-def write_prices(file, update):
+def write_prices(prices, file, s3_bucket, update):
     fn, ext = os.path.splitext(file)
     comp = None
     try:
@@ -26,11 +29,15 @@ def write_prices(file, update):
             comp = 'gzip'
     except Exception:
         pass
-    get_prices(file, update).to_json(file, orient='records', compression=comp, date_unit='s')
+    get_prices(prices, update).to_json(file, orient='records', compression=comp, date_unit='s')
+    if s3_bucket is not None:
+        s3 = boto3.resource('s3')
+        bucket = s3.Bucket(s3_bucket)
+        bucket.upload_file(file, os.path.basename(file), ExtraArgs={'ACL':'public-read'})
 
 
 @main.command()
-@click.option('--prices', help='Prices URL (pandas.read_json)', required=True)
+@click.option('--prices', help='Prices URL (pandas.read_json)', default=prices_url, show_default=True)
 @click.option('--file', help='Write performance data to this file', required=True)
 @click.option('--update/--no-update',
               help='Read file first and update it with new data, leaving disappeared entries there for historical reasons',
@@ -49,11 +56,14 @@ def write_performance(prices, file, update, expire):
         pass
     # convert human readable to seconds
     expire = pytimeparse.parse(expire)
-    get_performance(prices, file, update, expire).to_json(file, orient='records', compression=comp, date_unit='s')
+    if update:
+        get_performance(prices, file, update, expire).to_json(file, orient='records', compression=comp, date_unit='s')
+    else:
+        get_performance(prices, None, update, expire).to_json(file, orient='records', compression=comp, date_unit='s')
 
 
 @main.command()
-@click.option('--prices', help='Prices URL (pandas.read_json)')
+@click.option('--prices', help='Prices URL (pandas.read_json)', default=prices_url, show_default=True)
 @click.option('--cols', help='Columns to show', default=['instanceType', 'region', 'spot-az',
                                                          'vcpu', 'memory', 'price'],
               show_default=True, multiple=True)
@@ -65,8 +75,8 @@ def prices(prices, cols, sort):
 
 
 @main.command()
-@click.option('--prices', help='Prices URL (pandas.read_json)', required=True)
-@click.option('--perf', help='Performance URL (pandas.read_json)')
+@click.option('--prices', help='Prices URL (pandas.read_json)', default=prices_url, show_default=True)
+@click.option('--perf', help='Performance URL (pandas.read_json)', default=performance_url, show_default=True)
 @click.option('--cols', help='Columns to show', default=['instanceType', 'benchmark_id', 'benchmark_cpus',
                                                          'benchmark_score'],
               show_default=True, multiple=True)
