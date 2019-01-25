@@ -38,12 +38,14 @@ def write_prices(prices, file, s3_bucket, update):
 
 @main.command()
 @click.option('--prices', help='Prices URL (pandas.read_json)', default=prices_url, show_default=True)
+@click.option('--perf', help='Performance URL (pandas.read_json)', default=performance_url, show_default=True)
 @click.option('--file', help='Write performance data to this file', required=True)
+@click.option('--s3-bucket', help='Write prices to this s3 bucket')
 @click.option('--update/--no-update',
               help='Read file first and update it with new data, leaving disappeared entries there for historical reasons',
               default=True, show_default=True)
 @click.option('--expire', help='Re-run benchmarks after this time', default='12w', show_default=True)
-def write_performance(prices, file, update, expire):
+def write_performance(prices, perf, file, s3_bucket, update, expire):
     fn, ext = os.path.splitext(file)
     comp = None
     try:
@@ -57,9 +59,13 @@ def write_performance(prices, file, update, expire):
     # convert human readable to seconds
     expire = pytimeparse.parse(expire)
     if update:
-        get_performance(prices, file, update, expire).to_json(file, orient='records', compression=comp, date_unit='s')
+        get_performance(prices, perf, update, expire).to_json(file, orient='records', compression=comp, date_unit='s')
     else:
         get_performance(prices, None, update, expire).to_json(file, orient='records', compression=comp, date_unit='s')
+    if s3_bucket is not None:
+        s3 = boto3.resource('s3')
+        bucket = s3.Bucket(s3_bucket)
+        bucket.upload_file(file, os.path.basename(file), ExtraArgs={'ACL':'public-read'})
 
 
 @main.command()
