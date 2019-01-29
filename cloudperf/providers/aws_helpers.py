@@ -268,13 +268,10 @@ def get_ec2_instances(**filter_opts):
     for region in closest_regions(regions):
         pricing = session.client('pricing', region_name=region)
         instances = []
-        try:
-            for data in boto3_paginate(pricing.get_products, ServiceCode='AmazonEC2', Filters=filters, MaxResults=100):
-                pd = json.loads(data)
-                instances.append(pd)
-            break
-        except Exception:
-            continue
+        for data in boto3_paginate(pricing.get_products, ServiceCode='AmazonEC2', Filters=filters, MaxResults=100):
+            pd = json.loads(data)
+            instances.append(pd)
+        break
     return instances
 
 
