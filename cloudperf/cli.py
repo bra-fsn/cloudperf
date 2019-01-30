@@ -29,6 +29,8 @@ def write_prices(prices, file, s3_bucket, update):
             comp = 'gzip'
     except Exception:
         pass
+    if not update:
+        prices = None
     get_prices(prices, update).to_json(file, orient='records', compression=comp, date_unit='s')
     if s3_bucket is not None:
         s3 = boto3.resource('s3')
