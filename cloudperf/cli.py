@@ -31,11 +31,24 @@ def write_prices(prices, file, s3_bucket, update):
         pass
     if not update:
         prices = None
-    get_prices(prices, update).to_json(file, orient='records', compression=comp, date_unit='s')
+    df = get_prices(prices, update)
+    df.to_json(file, orient='records', compression=comp, date_unit='s')
     if s3_bucket is not None:
         s3 = boto3.resource('s3')
         bucket = s3.Bucket(s3_bucket)
-        bucket.upload_file(file, os.path.basename(file), ExtraArgs={'ACL':'public-read'})
+        if ext == '.gz':
+            # upload with
+            bucket.upload_file(file, os.path.splitext(os.path.basename(file)),
+                               ExtraArgs={'ACL': 'public-read',
+                                          'ContentType': 'application/json; charset=utf-8',
+                                          'ContentEncoding': 'gzip'})
+        elif comp:
+            bucket.upload_file(file, os.path.basename(
+                file), ExtraArgs={'ACL': 'public-read'})
+        else:
+            bucket.upload_file(file, os.path.basename(
+                file), ExtraArgs={'ACL': 'public-read',
+                                  'ContentType': 'application/json; charset=utf-8'})
 
 
 @main.command()
