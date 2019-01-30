@@ -88,6 +88,14 @@
 
   //Build Tabulator
   var table = new Tabulator("#example-table", {
+    ajaxURL:"https://cloudperf-data.s3-us-west-2.amazonaws.com/prices.json",
+    ajaxConfig:{
+        mode: "no-cors",
+        method:"get",
+        headers: {
+            "Content-type": 'application/json; charset=utf-8',
+        },
+    },
       height:"311px",
       layout:"fitDataFill",
       placeholder:"No Data Set",
@@ -106,14 +114,14 @@
           {title:"EBS tput", field:"dedicatedEbsThroughput", sorter:"string"},
           {title:"Processor", field:"physicalProcessor", sorter:"string"},
           {title:"Region", field:"region", sorter:"string"},
-          {title:"Spot", field:"spot", sorter:"string"},
+          {title:"Spot", field:"spot", editor:"select", editorParams:{values:{"true":"true", "false":"false"}}, headerFilter:true, headerFilterParams:{values:{"true":"true", "false":"false", "":""}}},
           {title:"price", field:"price", sorter:"number", headerFilter:minMaxFilterEditor, headerFilterFunc:minMaxFilterFunction},
 
       ],
   });
 
   //trigger AJAX load on "Load Data via AJAX" button click
-  table.setData("https://cloudperf-data.s3-us-west-2.amazonaws.com/prices.json");
+  // table.setData("https://cloudperf-data.s3-us-west-2.amazonaws.com/prices.json");
 </script>
 </body>
 </html>
