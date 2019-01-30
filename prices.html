@@ -86,25 +86,25 @@
       return false; //must return a boolean, true if it passes the filter.
   }
 
-function paramBuilder(column){
-  var list = {"":""};
-  var data = this.getData().map(a => a[column]);
+  function paramBuilder(column){
+    var list = {"":""};
+    var data = this.getData().map(a => a[column]);
 
-  data.forEach(function(item){
-	    if(typeof item !== "undefined"){
-		       list[item] = item;
-	    }
-  });
-  return list;
-}
+    data.forEach(function(item){
+  	    if(typeof item !== "undefined"){
+  		       list[item] = item;
+  	    }
+    });
+    return list;
+  }
 
-function partial(func /*, 0..n args */) {
-  var args = Array.prototype.slice.call(arguments, 1);
-  return function() {
-    var allArguments = args.concat(Array.prototype.slice.call(arguments));
-    return func.apply(this, allArguments);
-  };
-}
+  function partial(func /*, 0..n args */) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return function() {
+      var allArguments = args.concat(Array.prototype.slice.call(arguments));
+      return func.apply(this, allArguments);
+    };
+  }
 
   //Build Tabulator
   var table = new Tabulator("#prices-table", {
