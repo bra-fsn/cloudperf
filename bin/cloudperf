@@ -8,10 +8,4 @@ logging.getLogger("paramiko").setLevel(logging.WARNING)
 logging.getLogger("botocore").setLevel(logging.WARNING)
 
 if __name__ == '__main__':
-    import sys
-    import os
-    print("ARGS", sys.argv)
-    if not os.path.exists('/tmp/done'):
-        open('/tmp/done', 'w')
-        os.system('cloudperf --help')
     main()

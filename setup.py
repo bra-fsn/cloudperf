@@ -19,7 +19,7 @@ setuptools.setup(
     url="https://github.com/bra-fsn/cloudperf",
     packages=setuptools.find_packages(),
     scripts=['bin/cloudperf'],
-    install_requires=['cachetools', 'click', 'boto3>=1.9.61', 'pandas', 'requests',
+    install_requires=['cachetools', 'click>=7.0', 'boto3>=1.9.61', 'pandas', 'requests',
                       'python-dateutil', 'paramiko', 'pytimeparse'],
     classifiers=[
         "Programming Language :: Python :: 3",
