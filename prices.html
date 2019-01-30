@@ -88,14 +88,6 @@
 
   //Build Tabulator
   var table = new Tabulator("#example-table", {
-    ajaxURL:"https://cloudperf-data.s3-us-west-2.amazonaws.com/prices.json",
-    ajaxConfig:{
-        mode: "no-cors",
-        method:"get",
-        headers: {
-            "Content-type": 'application/json; charset=utf-8',
-        },
-    },
       height:"311px",
       layout:"fitDataFill",
       placeholder:"No Data Set",
@@ -121,7 +113,7 @@
   });
 
   //trigger AJAX load on "Load Data via AJAX" button click
-  // table.setData("https://cloudperf-data.s3-us-west-2.amazonaws.com/prices.json");
+  table.setData("https://cloudperf-data.s3-us-west-2.amazonaws.com/prices.json");
 </script>
 </body>
 </html>
