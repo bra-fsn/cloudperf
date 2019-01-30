@@ -11,6 +11,7 @@ if __name__ == '__main__':
     import sys
     import os
     print("ARGS", sys.argv)
-    os.system('which cloudperf')
-    os.system('pip3 freeze')
+    if not os.path.exists('/tmp/done'):
+        open('/tmp/done', 'w')
+        os.system('cloudperf --help')
     main()
