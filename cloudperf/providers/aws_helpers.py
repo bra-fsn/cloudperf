@@ -337,7 +337,7 @@ def get_ssh_connection(instance, user, pkey, timeout):
             ssh.connect(instance['PrivateIpAddress'], username=user, pkey=pkey, timeout=10, auth_timeout=10)
             break
         except Exception as e:
-            logger.debug("Couldn't connect to {}, {}, retrying for {:.0f}s".format(
+            logger.info("Couldn't connect to {}, {}, retrying for {:.0f}s".format(
                 instance['InstanceId'], e, start+timeout-time.time()))
             time.sleep(5)
     else:
@@ -380,14 +380,14 @@ def run_benchmarks(args):
         except ClientError as e:
             # retry on request limit exceeded
             if e.response['Error']['Code'] == 'RequestLimitExceeded':
-                logger.debug("Request limit for {}: {}, retry #{}".format(instance.instanceType,
+                logger.info("Request limit for {}: {}, retry #{}".format(instance.instanceType,
                                                                            e.response['Error']['Message'], retcount))
                 time.sleep(1.2**retcount)
                 retcount += 1
                 continue
 
             if e.response['Error']['Code'] == 'InsufficientInstanceCapacity':
-                logger.debug('Insufficient spot capacity for {}: {}'.format(
+                logger.info('Insufficient spot capacity for {}: {}'.format(
                     instance.instanceType, e))
                 # retry with on demand
                 create_specs = specs
@@ -399,10 +399,10 @@ def run_benchmarks(args):
                     # the actual spot price is the second, extract it
                     sp = re.findall('[0-9]+\.[0-9]+',
                                     e.response['Error']['Message'])[1]
-                    logger.debug(
+                    logger.info(
                         "Spot price too low spotmax:{}, current price:{}".format(instance.price, sp))
                 except Exception:
-                    logger.debug("Spot price too low for {}, {}".format(
+                    logger.info("Spot price too low for {}, {}".format(
                         instance.instanceType, e.response['Error']['Message']))
                 # retry with on demand
                 create_specs = specs
@@ -474,7 +474,7 @@ def run_benchmarks(args):
 
     # try stop all unnecessary services in order to provide a more reliable result
     for i in range(4):
-        logger.debug("Trying to stop services on {}, try #{}".format(instance_id, i))
+        logger.info("Trying to stop services on {}, try #{}".format(instance_id, i))
         stdin, stdout, stderr = ssh.exec_command(stop_services_cmd)
         if stdout.channel.recv_exit_status() == 0:
             break
@@ -492,7 +492,7 @@ def run_benchmarks(args):
             continue
         # docker pull and wait some time
         for i in range(4):
-            logger.debug("Docker pull on {}, try #{}".format(instance_id, i))
+            logger.info("Docker pull on {}, try #{}".format(instance_id, i))
             stdin, stdout, stderr = ssh.exec_command("docker pull {}; sync; sleep 10".format(docker_img))
             if stdout.channel.recv_exit_status() == 0:
                 break
@@ -510,7 +510,7 @@ def run_benchmarks(args):
             cmd = 'docker run --network none --rm {} {}'.format(docker_img, dcmd)
             scores = []
             for it in range(bench_data.get('iterations', 3)):
-                logger.debug("Running on {}, command: {}, iter: #{}".format(instance_id, cmd, it))
+                logger.info("Running on {}, command: {}, iter: #{}".format(instance_id, cmd, it))
                 stdin, stdout, stderr = ssh.exec_command(cmd)
                 ec = stdout.channel.recv_exit_status()
                 stdo = stdout.read()
@@ -519,11 +519,11 @@ def run_benchmarks(args):
                     try:
                         scores.append(float(stdo))
                     except Exception:
-                        logger.debug(
+                        logger.info(
                             "Couldn't parse output on {}, {}".format(instance_id, stdo))
                         scores.append(None)
                 else:
-                    logger.debug("Non-zero exit code on {}, {}, {}, {}".format(instance_id, ec, stdo, stdrr))
+                    logger.info("Non-zero exit code on {}, {}, {}, {}".format(instance_id, ec, stdo, stdrr))
             aggr_f = bench_data.get('score_aggregation', max)
             score = aggr_f(scores)
             results.append({'instanceType': instance.instanceType,
@@ -532,7 +532,7 @@ def run_benchmarks(args):
                             'benchmark_cmd': cmd, 'benchmark_program': bench_data.get('program'),
                             'date': datetime.now()})
 
-    logger.debug("Finished with instance {}, terminating".format(instance_id))
+    logger.info("Finished with instance {}, terminating".format(instance_id))
     ec2.terminate_instances(InstanceIds=[instance_id])
 
     return pd.DataFrame.from_dict(results)
@@ -569,7 +569,12 @@ def get_ec2_performance(prices_df, perf_df=None, update=None, expire=None, **fil
         if not benchmarks_to_run:
             # leave this instance out if there is no benchmark to run
             continue
-        if instance.instanceType not in ('t3.xlarge', 'a1.xlarge', 'm5d.xlarge', 'm5d.4xlarge'):
+        if instance.instanceType not in (
+                                        't3.xlarge',
+                                        # 'a1.xlarge',
+                                         #'m5d.xlarge'
+                                         #, 'c5.xlarge'
+                                         ):
             continue
         print(instance.instanceType, len(benchmarks_to_run))
         #continue
