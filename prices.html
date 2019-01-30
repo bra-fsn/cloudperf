@@ -112,8 +112,9 @@
       layout:"fitDataFill",
       placeholder:"No Data Set",
       dataLoaded:function() {
-        var reload_cols = ["location","spot", "spot-az", "instanceFamily",
-          "currentGeneration", "physicalProcessor"];
+        var reload_cols = ["provider", "cpu_arch", "region", "spot_az",
+                           "spot", "location", "instanceFamily",
+                           "currentGeneration", "physicalProcessor"];
         for (var i = 0; i < reload_cols.length; i++) {
             this.getColumn(reload_cols[i]).reloadHeaderFilter();
         }
