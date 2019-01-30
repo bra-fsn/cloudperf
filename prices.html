@@ -86,11 +86,38 @@
       return false; //must return a boolean, true if it passes the filter.
   }
 
+function paramBuilder(column){
+  var list = {"":""};
+  var data = this.getData().map(a => a[column]);
+
+  data.forEach(function(item){
+	    if(typeof item !== "undefined"){
+		       list[item] = item;
+	    }
+  });
+  return list;
+}
+
+function partial(func /*, 0..n args */) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  return function() {
+    var allArguments = args.concat(Array.prototype.slice.call(arguments));
+    return func.apply(this, allArguments);
+  };
+}
+
   //Build Tabulator
   var table = new Tabulator("#prices-table", {
       height:"600px",
       layout:"fitDataFill",
       placeholder:"No Data Set",
+      dataLoaded:function() {
+        var reload_cols = ["location","spot", "spot-az", "instanceFamily",
+          "currentGeneration", "physicalProcessor"];
+        for (var i = 0; i < reload_cols.length; i++) {
+            this.getColumn(reload_cols[i]).reloadHeaderFilter();
+        }
+      },
 
       columns:[
           {title:"Provider", field:"provider", editor:"select", editorParams:{values:{"aws":"Amazon"}}, headerFilter:true, headerFilterParams:{values:{"aws":"Amazon", "":""}}},
@@ -100,14 +127,14 @@
           {title:"price", field:"price", sorter:"number", headerFilter:minMaxFilterEditor, headerFilterFunc:minMaxFilterFunction},
           {title:"Arch", field:"cpu_arch", editor:"select", editorParams:{values:{"x86_64":"x86_64", "arm64":"arm64"}}, headerFilter:true, headerFilterParams:{values:{"x86_64":"x86_64", "arm64":"arm64", "":""}}},
           {title:"Freq", field:"clockSpeed", sorter:"string"},
-          {title:"Region", field:"region", sorter:"string"},
-          {title:"Spot AZ", field:"spot-az", sorter:"string"},
-          {title:"Spot", field:"spot", editor:"select", editorParams:{values:{"true":"true", "false":"false"}}, headerFilter:true, headerFilterParams:{values:{"true":"true", "false":"false", "":""}}},
-          {title:"Location", field:"location", editor:"select", editorParams:{values:{"US East (N. Virginia)":"US East (N. Virginia)","US West (Oregon)":"US West (Oregon)","EU (Ireland)":"EU (Ireland)","US East (Ohio)":"US East (Ohio)","EU (Stockholm)":"EU (Stockholm)","Canada (Central)":"Canada (Central)","Asia Pacific (Sydney)":"Asia Pacific (Sydney)","Asia Pacific (Seoul)":"Asia Pacific (Seoul)","US West (N. California)":"US West (N. California)","EU (Paris)":"EU (Paris)","AWS GovCloud (US)":"AWS GovCloud (US)","Asia Pacific (Singapore)":"Asia Pacific (Singapore)","Asia Pacific (Mumbai)":"Asia Pacific (Mumbai)","Asia Pacific (Tokyo)":"Asia Pacific (Tokyo)","South America (Sao Paulo)":"South America (Sao Paulo)","EU (Frankfurt)":"EU (Frankfurt)","EU (London)":"EU (London)","Asia Pacific (Osaka-Local)":"Asia Pacific (Osaka-Local)","AWS GovCloud (US-East)":"AWS GovCloud (US-East)"}}, headerFilter:true, headerFilterParams:{values:{"US East (N. Virginia)":"US East (N. Virginia)","US West (Oregon)":"US West (Oregon)","EU (Ireland)":"EU (Ireland)","US East (Ohio)":"US East (Ohio)","EU (Stockholm)":"EU (Stockholm)","Canada (Central)":"Canada (Central)","Asia Pacific (Sydney)":"Asia Pacific (Sydney)","Asia Pacific (Seoul)":"Asia Pacific (Seoul)","US West (N. California)":"US West (N. California)","EU (Paris)":"EU (Paris)","AWS GovCloud (US)":"AWS GovCloud (US)","Asia Pacific (Singapore)":"Asia Pacific (Singapore)","Asia Pacific (Mumbai)":"Asia Pacific (Mumbai)","Asia Pacific (Tokyo)":"Asia Pacific (Tokyo)","South America (Sao Paulo)":"South America (Sao Paulo)","EU (Frankfurt)":"EU (Frankfurt)","EU (London)":"EU (London)","Asia Pacific (Osaka-Local)":"Asia Pacific (Osaka-Local)","AWS GovCloud (US-East)":"AWS GovCloud (US-East)", "":""}}},
-          {title:"Family", field:"instanceFamily", editor:"select", editorParams:{values:{"General purpose":"General purpose","Compute optimized":"Compute optimized","Storage optimized":"Storage optimized","GPU instance":"GPU instance","Memory optimized":"Memory optimized","FPGA Instances":"FPGA Instances","Micro instances":"Micro instances"}}, headerFilter:true, headerFilterParams:{values:{"General purpose":"General purpose","Compute optimized":"Compute optimized","Storage optimized":"Storage optimized","GPU instance":"GPU instance","Memory optimized":"Memory optimized","FPGA Instances":"FPGA Instances","Micro instances":"Micro instances", "":""}}},
-          {title:"Current gen", field:"currentGeneration", editor:"select", editorParams:{values:{"Yes":"Yes", "No":"No"}}, headerFilter:true, headerFilterParams:{values:{"Yes":"Yes", "No":"No", "":""}}},
+          {title:"Region", field:"region", headerFilter:"select", headerFilterParams:partial(paramBuilder, 'region')},
+          {title:"Spot AZ", field:"spot-az", headerFilter:"select", headerFilterParams:partial(paramBuilder, 'spot-az')},
+          {title:"Spot", field:"spot", headerFilter:"select", headerFilterParams:partial(paramBuilder, 'spot')},
+          {title:"Location", field:"location", headerFilter:"select", headerFilterParams:partial(paramBuilder, 'location')},
+          {title:"Family", field:"instanceFamily", headerFilter:"select", headerFilterParams:partial(paramBuilder, 'instanceFamily')},
+          {title:"Current gen", field:"currentGeneration", headerFilter:"select", headerFilterParams:partial(paramBuilder, 'currentGeneration')},
           {title:"EBS tput", field:"dedicatedEbsThroughput", sorter:"string"},
-          {title:"Processor", field:"physicalProcessor", sorter:"string"},
+          {title:"Processor", field:"physicalProcessor", headerFilter:"select", headerFilterParams:partial(paramBuilder, 'physicalProcessor')},
       ],
   });
 
