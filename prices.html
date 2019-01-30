@@ -120,12 +120,12 @@ function partial(func /*, 0..n args */) {
       },
 
       columns:[
-          {title:"Provider", field:"provider", editor:"select", editorParams:{values:{"aws":"Amazon"}}, headerFilter:true, headerFilterParams:{values:{"aws":"Amazon", "":""}}},
+          {title:"Provider", field:"provider", headerFilter:"select", headerFilterParams:partial(paramBuilder, 'provider')},
           {title:"Instance", field:"instanceType", sorter:"string", headerFilter:"input"},
           {title:"vCPUs", field:"vcpu", sorter:"number", headerFilter:minMaxFilterEditor, headerFilterFunc:minMaxFilterFunction},
           {title:"RAM[GiB]", field:"memory", sorter:"number", headerFilter:minMaxFilterEditor, headerFilterFunc:minMaxFilterFunction},
           {title:"price", field:"price", sorter:"number", headerFilter:minMaxFilterEditor, headerFilterFunc:minMaxFilterFunction},
-          {title:"Arch", field:"cpu_arch", editor:"select", editorParams:{values:{"x86_64":"x86_64", "arm64":"arm64"}}, headerFilter:true, headerFilterParams:{values:{"x86_64":"x86_64", "arm64":"arm64", "":""}}},
+          {title:"Arch", field:"cpu_arch", headerFilter:"select", headerFilterParams:partial(paramBuilder, 'cpu_arch')},
           {title:"Freq", field:"clockSpeed", sorter:"string"},
           {title:"Region", field:"region", headerFilter:"select", headerFilterParams:partial(paramBuilder, 'region')},
           {title:"Spot AZ", field:"spot-az", headerFilter:"select", headerFilterParams:partial(paramBuilder, 'spot-az')},
