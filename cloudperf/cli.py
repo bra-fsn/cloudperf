@@ -36,9 +36,9 @@ def write_prices(prices, file, s3_bucket, update):
     if s3_bucket is not None:
         s3 = boto3.resource('s3')
         bucket = s3.Bucket(s3_bucket)
-        if ext == '.gz':
-            # upload with
-            bucket.upload_file(file, os.path.splitext(os.path.basename(file)),
+        if ext == 'gz':
+            # upload with gzip Content-Encoding and proper Content-Type
+            bucket.upload_file(file, os.path.basename(file),
                                ExtraArgs={'ACL': 'public-read',
                                           'ContentType': 'application/json; charset=utf-8',
                                           'ContentEncoding': 'gzip'})
