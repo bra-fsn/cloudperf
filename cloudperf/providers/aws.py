@@ -7,8 +7,7 @@ class CloudProvider(object):
     provider = 'aws'
     filters = {'operatingSystem': 'Linux', 'preInstalledSw': 'NA',
                'licenseModel': 'No License required', 'capacitystatus': 'Used',
-               'tenancy': 'Shared',
-               #'instanceType':'c5.2xlarge'
+               'tenancy': 'Shared'
                }
 
     def get_prices(self, **filters):
