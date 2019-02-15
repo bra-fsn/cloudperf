@@ -122,7 +122,7 @@ def performance(prices, perf, cols, sort, combined):
         if set(cols) == set(perf_defcols):
             # if we're using the default columns, add perf/price/cpu and other
             # infos as well
-            cols.extend(['perf/price/cpu', 'region', 'spot', 'spot-az'])
+            cols.extend(['perf/price/cpu', 'region', 'spot-az'])
             # keep order and remove duplicates
             seen = {}
             cols = [seen.setdefault(x, x) for x in cols if x not in seen]
