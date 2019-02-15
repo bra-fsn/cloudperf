@@ -3,8 +3,7 @@ python:
 - '3.6'
 install:
 - python setup.py install
-script: cloudperf write-prices --s3-bucket cloudperf-data --file /tmp/prices.json.gz
-  --no-update
+script: travis.sh
 env:
   global:
   - secure: m5m8Cje6b3rtasNdbFXANAEg3wqROl/AyabtbsNHBWG9bJsWHpDgIw/sGWljVeEwq5tpzT+IY5aUBSs1hX0KdAMTaNXkH8PchicHAQ7K7CfMAUNcR90WUS8HHWMPVv29/oFhdCjTklpXN8UDoCzUisnhfq8ZDTNAwqs2fYsR41CmzECP232ODoAZnJhuUvyFoT5VycJarwbSlb1TEdeZ37sHHybbUfzttRIkcMeqY7WvQlYBwQviz85FP6zQtEu5GBwtmL5cgxD9bFXTgD3AnvKebHjUniI9J53LTUSH3W/5AU5OlyKejvtDBknF3GSvRXIqxys3Jr6rg2kyK51fkxzjgSiRa9vW+9QSi/rUJAUfMT4FykPBTOgVrZebtewICm2hq1+t96DP3B7nRBI45dyiWYozGkVYMimXHf1/nM07bhrIHXvBYORAhdyIwdS887zEL/zZgWYs13E7mPs8QBldIaPS4HQ9MbxYUEidwhGfmxDhboMNhur+D2dGev8b8+GB4kYx54UDKO7U1uBSpOECBmkZTi4lJsoSFUgfxZoNcEKf5245nnWNMsgdpM2hM19CV4Z9fq3b/9460bc9tb3BMnZCZZERVmeVkXc/J7eOdlRb3Hs89orkdB+31IXrXBiQwiTjhBxo+tq+vh6JGoWJVEVIb1ZcDqIdzJUMMoc=

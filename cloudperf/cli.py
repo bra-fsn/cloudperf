@@ -3,7 +3,7 @@ import click
 import pandas as pd
 import pytimeparse
 import boto3
-from cloudperf import get_prices, get_performance, prices_url, performance_url
+from cloudperf import get_prices, get_performance, get_combined, prices_url, performance_url
 
 
 @click.group()
@@ -64,7 +64,7 @@ def write_prices(prices, file, s3_bucket, update):
 @click.option('--prices', help='Prices URL (pandas.read_json)', default=prices_url, show_default=True)
 @click.option('--perf', help='Performance URL (pandas.read_json)', default=performance_url, show_default=True)
 @click.option('--file', help='Write performance data to this file', required=True)
-@click.option('--s3-bucket', help='Write prices to this s3 bucket')
+@click.option('--s3-bucket', help='Write data to this s3 bucket')
 @click.option('--update/--no-update',
               help='Read file first and update it with new data, leaving disappeared entries there for historical reasons',
               default=True, show_default=True)
@@ -82,6 +82,18 @@ def write_performance(prices, perf, file, s3_bucket, update, expire):
 
 @main.command()
 @click.option('--prices', help='Prices URL (pandas.read_json)', default=prices_url, show_default=True)
+@click.option('--perf', help='Performance URL (pandas.read_json)', default=performance_url, show_default=True)
+@click.option('--file', help='Write combined perf/price data to this file', required=True)
+@click.option('--s3-bucket', help='Write data to this s3 bucket')
+def write_combined(prices, perf, file, s3_bucket):
+    comp = get_comp(file)
+    get_combined(prices, perf).to_json(file, orient='records', compression=comp, date_unit='s')
+    if s3_bucket is not None:
+        s3_upload(s3_bucket, file)
+
+
+@main.command()
+@click.option('--prices', help='Prices URL (pandas.read_json)', default=prices_url, show_default=True)
 @click.option('--cols', help='Columns to show', default=['instanceType', 'region', 'spot-az',
                                                          'vcpu', 'memory', 'price'],
               show_default=True, multiple=True)
@@ -92,14 +104,30 @@ def prices(prices, cols, sort):
         print(df.sort_values(list(sort))[list(cols)].to_string(index=False))
 
 
+perf_defcols = ['instanceType', 'benchmark_id', 'benchmark_cpus']
+
+
 @main.command()
 @click.option('--prices', help='Prices URL (pandas.read_json)', default=prices_url, show_default=True)
 @click.option('--perf', help='Performance URL (pandas.read_json)', default=performance_url, show_default=True)
-@click.option('--cols', help='Columns to show', default=['instanceType', 'benchmark_id', 'benchmark_cpus',
-                                                         'benchmark_score'],
-              show_default=True, multiple=True)
-@click.option('--sort', help='Sort by these columns', default=['benchmark_score'], multiple=True, show_default=True)
-def performance(prices, perf, cols, sort):
-    df = get_performance(prices, perf)
+@click.option('--cols', help='Columns to show', default=perf_defcols, show_default=True, multiple=True)
+@click.option('--sort', help='Sort by these columns', default=['perf/price/cpu'], multiple=True, show_default=True)
+@click.option('--combined/--no-combined',
+              help='Show combined prices/performance data or just performance',
+              default=True, show_default=True)
+def performance(prices, perf, cols, sort, combined):
+    cols = list(cols)
+    if combined:
+        df = get_combined(prices, perf)
+        if set(cols) == set(perf_defcols):
+            # if we're using the default columns, add perf/price/cpu and other
+            # infos as well
+            cols.extend(['perf/price/cpu', 'region', 'spot', 'spot-az'])
+            # keep order and remove duplicates
+            seen = {}
+            cols = [seen.setdefault(x, x) for x in cols if x not in seen]
+    else:
+        sort = ['benchmark_score']
+        df = get_performance(prices, perf)
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):
         print(df.sort_values(list(sort))[list(cols)].to_string(index=False))

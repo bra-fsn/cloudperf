@@ -38,6 +38,7 @@ def get_prices(prices=None, update=False):
     return pd.concat([cp.get_prices() for cp in get_providers()], ignore_index=True, sort=False)
 
 
+@cachetools.cached(cache={})
 def get_performance(prices=None, perf=None, update=False, expire=False):
     # if we got a stored file and update is True, merge the two by overwriting
     # old data with new (and leaving not updated old data intact).
@@ -56,5 +57,11 @@ def get_performance(prices=None, perf=None, update=False, expire=False):
     return pd.concat([cp.get_performance(get_prices(prices)) for cp in get_providers()], ignore_index=True, sort=False)
 
 
-def get_perfprice(prices=None, perf=None):
-    return price_df.merge(perf_df, on='instanceType')
+@cachetools.cached(cache={})
+def get_combined(prices=prices_url, perf=performance_url):
+    prices_df = get_prices(prices=prices)
+    perf_df = get_performance(prices=prices, perf=perf)
+    combined_df = perf_df.merge(prices_df, how='left', on=['provider', 'instanceType'], suffixes=('', '_prices'))
+    combined_df['perf/price/cpu'] = combined_df['benchmark_score']/combined_df['price']/combined_df['benchmark_cpus']
+
+    return combined_df
