@@ -22,7 +22,7 @@ setuptools.setup(
     install_requires=['cachetools', 'click>=7.0', 'boto3>=1.9.61', 'pandas', 'requests',
                       'python-dateutil', 'paramiko', 'pytimeparse'],
     classifiers=[
-        "Programming Language :: Python :: 3",
+        "Programming Language :: Python",
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
