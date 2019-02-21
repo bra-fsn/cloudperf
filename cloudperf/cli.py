@@ -4,7 +4,7 @@ import click
 import pandas as pd
 import pytimeparse
 import boto3
-from cloudperf import get_prices, get_performance, get_combined, prices_url, performance_url
+from cloudperf import get_prices, get_performance, get_combined, prices_url, performance_url, terminate_instances
 
 
 @click.group()
@@ -91,15 +91,23 @@ def write_prices(prices, file, s3_bucket, update):
               help='Read file first and update it with new data, leaving disappeared entries there for historical reasons',
               default=True, show_default=True)
 @click.option('--expire', help='Re-run benchmarks after this time', default='12w', show_default=True)
-def write_performance(prices, perf, file, s3_bucket, update, expire):
+@click.option('--terminate/--no-terminate',
+              help='Terminate tagged images at the end of the run to clean up leftover ones',
+              default=True, show_default=True)
+def write_performance(prices, perf, file, s3_bucket, update, expire, terminate):
     # convert human readable to seconds
     expire = pytimeparse.parse(expire)
     comp = get_comp(file)
     if not update:
         perf = None
-    get_performance(prices, perf, update, expire).to_json(file, orient='records', compression=comp, date_unit='s')
-    if s3_bucket is not None:
-        s3_upload(s3_bucket, file)
+    try:
+        get_performance(prices, perf, update, expire).to_json(file, orient='records', compression=comp, date_unit='s')
+        if s3_bucket is not None:
+            s3_upload(s3_bucket, file)
+    except Exception:
+        pass
+    if terminate:
+        terminate_instances()
 
 
 @main.command()

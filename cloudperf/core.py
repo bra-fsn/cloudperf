@@ -65,3 +65,8 @@ def get_combined(prices=prices_url, perf=performance_url):
     combined_df['perf/price/cpu'] = combined_df['benchmark_score']/combined_df['price']/combined_df['benchmark_cpus']
 
     return combined_df
+
+
+def terminate_instances():
+    for cp in get_providers():
+        cp.terminate_instances()

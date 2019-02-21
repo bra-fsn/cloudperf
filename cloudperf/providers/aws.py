@@ -31,3 +31,6 @@ class CloudProvider(object):
         instances['provider'] = self.provider
 
         return instances
+
+    def terminate_instances(self):
+        aws_helpers.terminate_instances()

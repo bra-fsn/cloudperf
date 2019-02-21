@@ -59,7 +59,12 @@ ec2_specs = {'KeyName': ssh_keyname, 'SecurityGroups': ['tech-ssh'],
                                    {'ResourceType': 'volume',
                                     'Tags': [{'Value': 'cloudperf', 'Key': 'Application'}]}]}
 
-stop_services_cmd = "sudo systemctl | grep running | awk '{print $1}' | egrep -v '(auditd|dbus|docker|syslog|sshd|systemd|\.scope|network\.service)' | xargs sudo systemctl stop"
+instance_init_script = """#!/bin/sh
+
+sudo systemctl | grep running | awk '{print $1}' | egrep -v '(auditd|dbus|docker|syslog|sshd|systemd|\.scope|network\.service)' | xargs sudo systemctl stop
+sudo curl -L https://github.com/docker/compose/releases/download/1.23.2/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+"""
 
 
 class DictQuery(dict):
@@ -182,6 +187,30 @@ def aws_get_latest_ami(name='amzn2-ami-ecs-hvm*ebs', arch='x86_64'):
 
     response = ec2.describe_images(Owners=['amazon'], Filters=filters)
     return aws_newest_image(response['Images'])
+
+
+def get_running_ec2_instances(filters=[]):
+    ec2 = session.client('ec2', region_name=aws_get_region())
+    response = ec2.describe_instances(Filters=filters)
+    instances = []
+    for reservation in response["Reservations"]:
+        for instance in reservation["Instances"]:
+            if DictQuery(instance).get(['State', 'Name']) == 'running':
+                instances.append(instance)
+    return instances
+
+
+def terminate_instances():
+    filter = [{'Name': 'tag:Application', 'Values': ['cloudperf']}]
+    tag = {'Key': 'Application', 'Value': 'cloudperf'}
+    ec2 = session.client('ec2', region_name=aws_get_region())
+    for instance in get_running_ec2_instances(filter):
+        # although we filter for our tag, an error in this would cause the
+        # termination of other machines, so do a manual filtering here as well
+        if tag not in instance['Tags']:
+            continue
+        logger.info("Terminating instance {}".format(instance['InstanceId']))
+        ec2.terminate_instances(InstanceIds=[instance['InstanceId']])
 
 
 @cachetools.cached(cache={}, key=tuple)
@@ -472,17 +501,30 @@ def run_benchmarks(args):
     # give some more time for the machine to be ready and to settle down
     time.sleep(60)
 
+    # write init_script
+    for i in range(4):
+        try:
+            sftp = ssh.open_sftp()
+            f = sftp.open('init_script', 'w')
+            f.write(instance_init_script)
+            f.close()
+            sftp.chmod('init_script', 0o755)
+            break
+        except Exception:
+            logger.exception("Failed to write init_script, try #{}".format(i))
+            continue
     # try stop all unnecessary services in order to provide a more reliable result
     for i in range(4):
-        logger.info("Trying to stop services on {}, try #{}".format(instance_id, i))
-        stdin, stdout, stderr = ssh.exec_command(stop_services_cmd)
+        logger.info("Trying to execute init_script on {}, try #{}".format(instance_id, i))
+        stdin, stdout, stderr = ssh.exec_command("./init_script")
         if stdout.channel.recv_exit_status() == 0:
             break
         time.sleep(5)
     else:
-        # log, but don't fail
-        logger.error("Couldn't stop services on {}: {}, {}".format(
+        logger.error("Couldn't execute init_script on {}: {}, {}".format(
             instance_id, stdout.read(), stderr.read()))
+        ec2.terminate_instances(InstanceIds=[instance_id])
+        return None
 
     results = []
     for name, bench_data in benchmarks_to_run.items():
@@ -525,7 +567,10 @@ def run_benchmarks(args):
                 else:
                     logger.info("Non-zero exit code on {}, {}, {}, {}".format(instance_id, ec, stdo, stdrr))
             aggr_f = bench_data.get('score_aggregation', max)
-            score = aggr_f(scores)
+            try:
+                score = aggr_f(scores)
+            except Exception:
+                score = None
             results.append({'instanceType': instance.instanceType,
                             'benchmark_cpus': i, 'benchmark_score': score, 'benchmark_id': name,
                             'benchmark_name': bench_data.get('name'),
@@ -570,9 +615,9 @@ def get_ec2_performance(prices_df, perf_df=None, update=None, expire=None, **fil
             # leave this instance out if there is no benchmark to run
             continue
         if instance.instanceType not in (
-                                        't3.xlarge',
+                                        # 't3.xlarge',
                                         # 'a1.xlarge',
-                                         #'m5d.xlarge'
+                                         'm5d.xlarge'
                                          #, 'c5.xlarge'
                                          ):
             continue
@@ -583,6 +628,9 @@ def get_ec2_performance(prices_df, perf_df=None, update=None, expire=None, **fil
     if bench_args:
         pool = ThreadPool(32)
         results = pool.map(run_benchmarks, bench_args)
-        return pd.concat(results, ignore_index=True, sort=False)
+        try:
+            return pd.concat(results, ignore_index=True, sort=False)
+        except Exception:
+            return pd.DataFrame({})
     else:
         return pd.DataFrame({})

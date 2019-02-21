@@ -28,9 +28,6 @@
 #   - `score_aggregation`: this python function will be used to aggregating the
 #                          scores from the above iterations. The scores will be
 #                          passed as a list of floats. Default: max
-#                          WARNING: as stated above, given (or all) iterations
-#                          can return `None`, so the aggregation function must be
-#                          able to cope with that.
 
 stress_ng_tag = '0.09.50'
 benchmarks = {
