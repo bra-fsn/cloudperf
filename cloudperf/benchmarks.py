@@ -32,18 +32,19 @@
 #                          can return `None`, so the aggregation function must be
 #                          able to cope with that.
 
+stress_ng_tag = '0.09.50'
 benchmarks = {
     'sng_matrixprod': {'program': 'stress-ng',
                        'name': 'stress-ng matrixprod',
                        # due to python formatting {} must be escaped by {{}}
                        'cmd': "--cpu {numcpu} --cpu-method matrixprod -t 10 --metrics 2>&1 | tail -1 | awk '{{print $9}}'",
-                       'images': {'x86_64': 'brafsn/stress-ng-x86_64',
-                                  'arm64': 'brafsn/stress-ng-arm64'}
+                       'images': {'x86_64': 'brafsn/stress-ng-x86_64:{}'.format(stress_ng_tag),
+                                  'arm64': 'brafsn/stress-ng-arm64:{}'.format(stress_ng_tag)}
                        },
     'sng_zlib': {'program': 'stress-ng',
                  'name': 'stress-ng zlib',
                  'cmd': "--zlib {numcpu} --zlib-method fixed -t 10 --metrics 2>&1 | tail -1 | awk '{{print $9}}'",
-                 'images': {'x86_64': 'brafsn/stress-ng-x86_64',
-                            'arm64': 'brafsn/stress-ng-arm64'}
+                 'images': {'x86_64': 'brafsn/stress-ng-x86_64:{}'.format(stress_ng_tag),
+                            'arm64': 'brafsn/stress-ng-arm64:{}'.format(stress_ng_tag)}
                  }
 }
