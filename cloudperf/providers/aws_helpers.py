@@ -346,8 +346,7 @@ def get_ssh_connection(instance, user, pkey, timeout):
             ssh.connect(instance['PrivateIpAddress'], username=user, pkey=pkey, timeout=10, auth_timeout=10)
             break
         except Exception as e:
-            logger.info("Couldn't connect to {}, {}, retrying for {:.0f}s".format(
-                instance['InstanceId'], e, start+timeout-time.time()))
+            logger.info("Couldn't connect: {}, retrying for {:.0f}s".format(e, start+timeout-time.time()))
             time.sleep(5)
     else:
         return None
@@ -355,6 +354,7 @@ def get_ssh_connection(instance, user, pkey, timeout):
 
 
 def run_benchmarks(args):
+    threading.current_thread().name = 'run_bench'
     ami, instance, benchmarks_to_run = args
     specs = copy.deepcopy(ec2_specs)
     bdmap = ami['BlockDeviceMappings']
@@ -452,9 +452,10 @@ def run_benchmarks(args):
         return None
 
     instance_id = ec2_inst['InstanceId']
+    threading.current_thread().name = instance_id
 
     logger.info(
-        "Waiting for instance {}/{} to be ready".format(instance.instanceType, instance_id))
+        "Waiting for instance {} to be ready".format(instance.instanceType))
     # wait for the instance
     try:
         waiter = ec2.get_waiter('instance_running')
@@ -465,7 +466,7 @@ def run_benchmarks(args):
             })
     except Exception:
         logger.exception(
-            'Waiter failed for {}/{}'.format(instance.instanceType, instance_id))
+            'Waiter failed for {}'.format(instance.instanceType))
 
     # give 5 secs before trying ssh
     time.sleep(5)
@@ -473,8 +474,7 @@ def run_benchmarks(args):
         StringIO(aws_get_parameter('/ssh_keys/{}'.format(ssh_keyname))))
     ssh = get_ssh_connection(ec2_inst, ssh_user, pkey, ssh_get_conn_timeout)
     if ssh is None:
-        logger.error(
-            "Couldn't open an ssh connection to {}, terminating instance".format(instance_id))
+        logger.error("Couldn't open an ssh connection, terminating instance")
         ec2.terminate_instances(InstanceIds=[instance_id])
         return None
 
@@ -492,19 +492,20 @@ def run_benchmarks(args):
             continue
     # try stop all unnecessary services in order to provide a more reliable result
     for i in range(4):
-        logger.info("Trying to execute init_script on {}, try #{}".format(instance_id, i))
+        logger.info("Trying to execute init_script, try #{}".format(i))
         stdin, stdout, stderr = ssh.exec_command("./init_script")
         if stdout.channel.recv_exit_status() == 0:
             break
         time.sleep(5)
     else:
-        logger.error("Couldn't execute init_script on {}: {}, {}".format(
-            instance_id, stdout.read(), stderr.read()))
+        logger.error("Couldn't execute init_script: {}, {}".format(
+            stdout.read(), stderr.read()))
         ec2.terminate_instances(InstanceIds=[instance_id])
         return None
 
     results = []
     for name, bench_data in benchmarks_to_run.items():
+        threading.current_thread().name = '{}/{}'.format(instance_id, name)
         docker_img = bench_data['images'].get(instance.cpu_arch, None)
         if not docker_img:
             logger.error("Couldn't find docker image for {}/{}".format(name, instance.cpu_arch))
@@ -515,14 +516,14 @@ def run_benchmarks(args):
 
         # docker pull and wait some time
         for i in range(4):
-            logger.info("Docker pull on {}/{}, try #{}".format(instance_id, name, i))
+            logger.info("Docker pull, try #{}".format(i))
             stdin, stdout, stderr = ssh.exec_command("docker pull {}; sync; sleep 10".format(docker_img))
             if stdout.channel.recv_exit_status() == 0:
                 break
             time.sleep(5)
         else:
-            logger.error("Couldn't pull docker image on {}: {}, {}".format(
-                instance_id, stdout.read(), stderr.read()))
+            logger.error("Couldn't pull docker image {}, {}".format(
+                stdout.read(), stderr.read()))
             continue
 
         if 'composefile' in bench_data:
@@ -530,16 +531,16 @@ def run_benchmarks(args):
             # start docker compose
             stdin, stdout, stderr = ssh.exec_command("docker-compose up -d")
             if stdout.channel.recv_exit_status() != 0:
-                logger.error("Couldn't start docker compose on {}/{}: {}, {}".format(
-                    instance_id, name, stdout.read(), stderr.read()))
+                logger.error("Couldn't start docker compose {}, {}".format(
+                    stdout.read(), stderr.read()))
                 continue
 
             if 'after_compose_up' in bench_data:
                 sftp_write_file(sftp, 'after_compose_up', bench_data['after_compose_up'])
                 stdin, stdout, stderr = ssh.exec_command("./after_compose_up")
                 if stdout.channel.recv_exit_status() != 0:
-                    logger.error("Couldn't start after_compose_up script on {}/{}: {}, {}".format(
-                        instance_id, name, stdout.read(), stderr.read()))
+                    logger.error("Couldn't start after_compose_up script {}, {}".format(
+                        stdout.read(), stderr.read()))
                     continue
 
         if 'cpus' in bench_data and bench_data['cpus']:
@@ -555,7 +556,7 @@ def run_benchmarks(args):
             cmd = 'docker run --rm {} {} {}'.format(docker_opts, docker_img, dcmd)
             scores = []
             for it in range(bench_data.get('iterations', 3)):
-                logger.info("Running on {}/{}, command: {}, iter: #{}".format(instance_id, name, cmd, it))
+                logger.info("Running command: {}, iter: #{}".format(cmd, it))
                 stdin, stdout, stderr = ssh.exec_command(cmd)
                 ec = stdout.channel.recv_exit_status()
                 stdo = stdout.read()
@@ -565,10 +566,10 @@ def run_benchmarks(args):
                         scores.append(float(stdo))
                     except Exception:
                         logger.info(
-                            "Couldn't parse output on {}, {}".format(instance_id, stdo))
+                            "Couldn't parse output: {}".format(stdo))
                         scores.append(None)
                 else:
-                    logger.info("Non-zero exit code on {}, {}, {}, {}".format(instance_id, ec, stdo, stdrr))
+                    logger.info("Non-zero exit code {}, {}, {}".format(ec, stdo, stdrr))
             aggr_f = bench_data.get('score_aggregation', max)
             try:
                 score = aggr_f(scores)
@@ -582,18 +583,18 @@ def run_benchmarks(args):
         if 'composefile' in bench_data:
             stdin, stdout, stderr = ssh.exec_command("docker-compose down -v")
             if stdout.channel.recv_exit_status() != 0:
-                logger.error("Couldn't stop docker compose on {}: {}, {}".format(
-                    instance_id, stdout.read(), stderr.read()))
+                logger.error("Couldn't stop docker compose: {}, {}".format(
+                    stdout.read(), stderr.read()))
                 continue
             if 'after_compose_down' in bench_data:
                 sftp_write_file(sftp, 'after_compose_down', bench_data['after_compose_down'])
                 stdin, stdout, stderr = ssh.exec_command("./after_compose_down")
                 if stdout.channel.recv_exit_status() != 0:
-                    logger.error("Couldn't start after_compose_down script on {}: {}, {}".format(
-                        instance_id, stdout.read(), stderr.read()))
+                    logger.error("Couldn't start after_compose_down script: {}, {}".format(
+                        stdout.read(), stderr.read()))
                     continue
 
-    logger.info("Finished with instance {}, terminating".format(instance_id))
+    logger.info("Finished with instance, terminating")
     ec2.terminate_instances(InstanceIds=[instance_id])
 
     return pd.DataFrame.from_dict(results)
