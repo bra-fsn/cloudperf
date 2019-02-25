@@ -5,6 +5,8 @@
 #   - `name`: the verbose name of the benchmark
 #   - `images`: another, architecture-name keyed dictionary, which defines a docker image
 #               for each architecture
+#   - `files`: a dictonary of file names and file contents (string) to write to
+#              the host, like: {'setup_db.sh': crdb_setup},`
 #   - `cmd`: the command to be passed to the docker image. Variable expansion
 #            is available here with the following variables:
 #               - `numcpu`: the excercised number of CPUs (if the benchmark can
@@ -29,19 +31,125 @@
 #                          scores from the above iterations. The scores will be
 #                          passed as a list of floats. Default: max
 
+crdb_tag = 'v2.1.5'
 stress_ng_tag = '0.09.50'
+
+crdb_compose_yml = """version: '3'
+
+services:
+  db-0:
+    image: cockroachdb/cockroach:{tag}
+    command: start --insecure
+    expose:
+     - "8080"
+     - "26257"
+    ports:
+     - "26257:26257"
+     - "8080:8080"
+    networks:
+     - roachnet
+    volumes:
+     - ./data/db-0:/cockroach/cockroach-data
+  db-1:
+    image: cockroachdb/cockroach:{tag}
+    command: start --insecure --join=db-0 --join=db-2
+    networks:
+     - roachnet
+    volumes:
+     - ./data/db-1:/cockroach/cockroach-data
+  db-2:
+    image: cockroachdb/cockroach:{tag}
+    command: start --insecure --join=db-0 --join=db-1
+    networks:
+     - roachnet
+    volumes:
+     - ./data/db-2:/cockroach/cockroach-data
+  # db-init:
+  #  image: cockroachdb/cockroach:{tag}
+  #  networks:
+  #   - roachnet
+  #  volumes:
+  #    - ./setup_db.sh:/setup_db.sh
+  #  entrypoint: "/bin/bash"
+  #  command: /setup_db.sh
+networks:
+  roachnet:
+""".format(tag=crdb_tag)
+
+crdb_sysbench_common_opts = "--db-driver=pgsql --oltp-table-size=100000 --oltp-tables-count=24 " \
+    "--pgsql-host=db-1 --pgsql-port=26257 --pgsql-user=root --pgsql-db=cloudperf"
+
+crdb_compose_up = """#!/bin/sh
+docker run --rm --network ec2-user_roachnet cockroachdb/cockroach:{} sql --host db-1 --insecure -e "CREATE DATABASE cloudperf;"
+docker run --rm --network ec2-user_roachnet severalnines/sysbench sysbench --threads=1 {} /usr/share/sysbench/tests/include/oltp_legacy/parallel_prepare.lua prepare
+""".format(crdb_tag, crdb_sysbench_common_opts)
+
+crdb_compose_down = """#!/bin/sh
+sudo rm -rf data
+"""
+
+
+mysql_compose_yml = """version: '3'
+
+services:
+  mysql:
+    image: mysql/mysql-server:{}
+    environment:
+     - MYSQL_ROOT_PASSWORD=password
+     - MYSQL_ROOT_HOST=%
+    expose:
+     - "3306"
+    ports:
+     - "3306:3306"
+    networks:
+     - mysql
+    volumes:
+     - ./data/mysql:/var/lib/mysql
+networks:
+  mysql:
+"""
+
+mysql_sysbench_common_opts = "--db-driver=mysql --oltp-table-size=100000 --oltp-tables-count=24 " \
+    "--mysql-host=mysql --mysql-user=root --mysql-db=cloudperf"
+mysql_compose_up = """#!/bin/sh
+docker run --rm --network ec2-user_mysql mysql/mysql-server sh -c 'echo "create database cloudperf" | mysql -u root -ppassword -h mysql'
+docker run --rm --network ec2-user_mysql severalnines/sysbench sysbench --threads=1 {} /usr/share/sysbench/tests/include/oltp_legacy/parallel_prepare.lua prepare
+""".format(mysql_sysbench_common_opts)
+mysql_compose_down = """#!/bin/sh
+sudo rm -rf data
+"""
+
 benchmarks = {
-    'sng_matrixprod': {'program': 'stress-ng',
-                       'name': 'stress-ng matrixprod',
-                       # due to python formatting {} must be escaped by {{}}
-                       'cmd': "--cpu {numcpu} --cpu-method matrixprod -t 10 --metrics 2>&1 | tail -1 | awk '{{print $9}}'",
+    # 'sysbench:oltp:cockroachdb:{}'.format(crdb_tag): {'program': 'cockroachdb',
+    #                                                   'name': 'stress-ng matrixprod',
+    #                                                   'composefile': crdb_compose_yml,
+    #                                                   'after_compose_up': crdb_compose_up,
+    #                                                   'after_compose_down': crdb_compose_down,
+    #                                                   # 'files': {'setup_db.sh': crdb_setup},
+    #                                                   'docker_opts': '--network ec2-user_roachnet',
+    #                                                   'cmd': "sysbench --threads={numcpu} " + crdb_sysbench_common_opts + " /usr/share/sysbench/tests/include/oltp_legacy/oltp.lua run | fgrep 'queries:' | egrep -o '[0-9.]+ per sec' | awk '{{print $1}}'",
+    #                                                   'images': {'x86_64': 'severalnines/sysbench'}
+    #                                                   },
+    # 'sysbench:oltp:mysql:5.5': {'program': 'mysql',
+    #                          'name': 'stress-ng matrixprod',
+    #                          'composefile': mysql_compose_yml.format('5.5'),
+    #                          'after_compose_up': mysql_compose_up,
+    #                          'after_compose_down': mysql_compose_down,
+    #                          # 'files': {'setup_db.sh': crdb_setup},
+    #                          'docker_opts': '--network ec2-user_mysql',
+    #                          'cmd': "sysbench --threads={numcpu} " + mysql_sysbench_common_opts + " /usr/share/sysbench/tests/include/oltp_legacy/oltp.lua run | fgrep 'queries:' | egrep -o '[0-9.]+ per sec' | awk '{{print $1}}'",
+    #                          'images': {'x86_64': 'severalnines/sysbench'}
+    #                          },
+    'stress-ng:matrixprod': {'program': 'stress-ng',
+                             'name': 'stress-ng matrixprod',
+                             'cmd': "--cpu {numcpu} --cpu-method matrixprod -t 10 --metrics 2>&1 | tail -1 | awk '{{print $9}}'",
+                             'images': {'x86_64': 'brafsn/stress-ng-x86_64:{}'.format(stress_ng_tag),
+                                        'arm64': 'brafsn/stress-ng-arm64:{}'.format(stress_ng_tag)}
+                             },
+    'stress-ng:zlib': {'program': 'stress-ng',
+                       'name': 'stress-ng zlib',
+                       'cmd': "--zlib {numcpu} --zlib-method fixed -t 10 --metrics 2>&1 | tail -1 | awk '{{print $9}}'",
                        'images': {'x86_64': 'brafsn/stress-ng-x86_64:{}'.format(stress_ng_tag),
                                   'arm64': 'brafsn/stress-ng-arm64:{}'.format(stress_ng_tag)}
-                       },
-    'sng_zlib': {'program': 'stress-ng',
-                 'name': 'stress-ng zlib',
-                 'cmd': "--zlib {numcpu} --zlib-method fixed -t 10 --metrics 2>&1 | tail -1 | awk '{{print $9}}'",
-                 'images': {'x86_64': 'brafsn/stress-ng-x86_64:{}'.format(stress_ng_tag),
-                            'arm64': 'brafsn/stress-ng-arm64:{}'.format(stress_ng_tag)}
-                 }
+                       }
 }
