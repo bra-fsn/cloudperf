@@ -44,6 +44,7 @@ def s3_upload(s3_bucket, file):
             file), ExtraArgs={'ACL': 'public-read',
                               'ContentType': 'application/json; charset=utf-8'})
 
+
 def df_filter(df, filters):
     for f in filters:
         m = re.search('(?P<col>[^=<>]+)(?P<op>[=<>]+)(?P<value>.*)', f)
@@ -52,7 +53,7 @@ def df_filter(df, filters):
         try:
             v = float(m.group('value'))
         except Exception:
-            pass
+            v = m.group('value')
         if m.group('op') == '=':
             df = df[df[m.group('col')] == v]
         elif m.group('op') == '>':
