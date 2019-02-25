@@ -18,6 +18,8 @@ import pandas as pd
 from dateutil import parser
 from botocore.exceptions import ClientError
 from cloudperf.benchmarks import benchmarks
+from cloudperf.core import sftp_write_file, DictQuery
+
 
 session = boto3.session.Session()
 logger = logging.getLogger(__name__)
@@ -65,28 +67,6 @@ sudo systemctl | grep running | awk '{print $1}' | egrep -v '(auditd|dbus|docker
 sudo curl -L https://github.com/docker/compose/releases/download/1.23.2/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
 sudo chmod +x /usr/local/bin/docker-compose
 """
-
-
-class DictQuery(dict):
-    def get(self, keys, default=None):
-        val = None
-
-        for key in keys:
-            if val:
-                if isinstance(val, list):
-                    val = [v.get(key, default) if v else None for v in val]
-                else:
-                    try:
-                        val = val.get(key, default)
-                    except AttributeError:
-                        return default
-            else:
-                val = dict.get(self, key, default)
-
-            if val == default:
-                break
-
-        return val
 
 
 def boto3_paginate(method, **kwargs):
@@ -500,15 +480,12 @@ def run_benchmarks(args):
 
     # give some more time for the machine to be ready and to settle down
     time.sleep(60)
+    sftp = ssh.open_sftp()
 
     # write init_script
     for i in range(4):
         try:
-            sftp = ssh.open_sftp()
-            f = sftp.open('init_script', 'w')
-            f.write(instance_init_script)
-            f.close()
-            sftp.chmod('init_script', 0o755)
+            sftp_write_file(sftp, 'init_script', instance_init_script)
             break
         except Exception:
             logger.exception("Failed to write init_script, try #{}".format(i))
@@ -532,9 +509,13 @@ def run_benchmarks(args):
         if not docker_img:
             logger.error("Couldn't find docker image for {}/{}".format(name, instance.cpu_arch))
             continue
+        # write files for the benchmark
+        for name, contents in bench_data['images'].get('files', {}):
+            sftp_write_file(sftp, name, contents)
+
         # docker pull and wait some time
         for i in range(4):
-            logger.info("Docker pull on {}, try #{}".format(instance_id, i))
+            logger.info("Docker pull on {}/{}, try #{}".format(instance_id, name, i))
             stdin, stdout, stderr = ssh.exec_command("docker pull {}; sync; sleep 10".format(docker_img))
             if stdout.channel.recv_exit_status() == 0:
                 break
@@ -542,17 +523,39 @@ def run_benchmarks(args):
         else:
             logger.error("Couldn't pull docker image on {}: {}, {}".format(
                 instance_id, stdout.read(), stderr.read()))
+            continue
+
+        if 'composefile' in bench_data:
+            sftp_write_file(sftp, 'docker-compose.yml', bench_data['composefile'], 0o644)
+            # start docker compose
+            stdin, stdout, stderr = ssh.exec_command("docker-compose up -d")
+            if stdout.channel.recv_exit_status() != 0:
+                logger.error("Couldn't start docker compose on {}/{}: {}, {}".format(
+                    instance_id, name, stdout.read(), stderr.read()))
+                continue
+
+            if 'after_compose_up' in bench_data:
+                sftp_write_file(sftp, 'after_compose_up', bench_data['after_compose_up'])
+                stdin, stdout, stderr = ssh.exec_command("./after_compose_up")
+                if stdout.channel.recv_exit_status() != 0:
+                    logger.error("Couldn't start after_compose_up script on {}/{}: {}, {}".format(
+                        instance_id, name, stdout.read(), stderr.read()))
+                    continue
 
         if 'cpus' in bench_data and bench_data['cpus']:
             cpulist = bench_data['cpus']
         else:
             cpulist = range(1, instance.vcpu+1)
+
+        # default options if missing
+        docker_opts = bench_data.get('docker_opts', '--network none')
         for i in cpulist:
+            ssh.exec_command("sync")
             dcmd = bench_data['cmd'].format(numcpu=i)
-            cmd = 'docker run --network none --rm {} {}'.format(docker_img, dcmd)
+            cmd = 'docker run --rm {} {} {}'.format(docker_opts, docker_img, dcmd)
             scores = []
             for it in range(bench_data.get('iterations', 3)):
-                logger.info("Running on {}, command: {}, iter: #{}".format(instance_id, cmd, it))
+                logger.info("Running on {}/{}, command: {}, iter: #{}".format(instance_id, name, cmd, it))
                 stdin, stdout, stderr = ssh.exec_command(cmd)
                 ec = stdout.channel.recv_exit_status()
                 stdo = stdout.read()
@@ -576,6 +579,19 @@ def run_benchmarks(args):
                             'benchmark_name': bench_data.get('name'),
                             'benchmark_cmd': cmd, 'benchmark_program': bench_data.get('program'),
                             'date': datetime.now()})
+        if 'composefile' in bench_data:
+            stdin, stdout, stderr = ssh.exec_command("docker-compose down -v")
+            if stdout.channel.recv_exit_status() != 0:
+                logger.error("Couldn't stop docker compose on {}: {}, {}".format(
+                    instance_id, stdout.read(), stderr.read()))
+                continue
+            if 'after_compose_down' in bench_data:
+                sftp_write_file(sftp, 'after_compose_down', bench_data['after_compose_down'])
+                stdin, stdout, stderr = ssh.exec_command("./after_compose_down")
+                if stdout.channel.recv_exit_status() != 0:
+                    logger.error("Couldn't start after_compose_down script on {}: {}, {}".format(
+                        instance_id, stdout.read(), stderr.read()))
+                    continue
 
     logger.info("Finished with instance {}, terminating".format(instance_id))
     ec2.terminate_instances(InstanceIds=[instance_id])

@@ -9,6 +9,36 @@ prices_url = 'https://cloudperf-data.s3-us-west-2.amazonaws.com/prices.json.gz'
 performance_url = 'https://cloudperf-data.s3-us-west-2.amazonaws.com/performance.json.gz'
 
 
+def sftp_write_file(sftp, name, contents, mode=0o755):
+    f = sftp.open(name, 'w')
+    f.write(contents)
+    f.close()
+    if mode is not None:
+        sftp.chmod(name, mode)
+
+
+class DictQuery(dict):
+    def get(self, keys, default=None):
+        val = None
+
+        for key in keys:
+            if val:
+                if isinstance(val, list):
+                    val = [v.get(key, default) if v else None for v in val]
+                else:
+                    try:
+                        val = val.get(key, default)
+                    except AttributeError:
+                        return default
+            else:
+                val = dict.get(self, key, default)
+
+            if val == default:
+                break
+
+        return val
+
+
 @cachetools.cached(cache={})
 def get_providers():
     prov_path = cloudperf.providers.__path__
