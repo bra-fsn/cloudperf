@@ -184,16 +184,13 @@ def terminate_instances():
     filter = [{'Name': 'tag:Application', 'Values': ['cloudperf']}]
     tag = {'Key': 'Application', 'Value': 'cloudperf'}
     ec2 = session.client('ec2', region_name=aws_get_region())
-    instances = []
     for instance in get_running_ec2_instances(filter):
         # although we filter for our tag, an error in this would cause the
         # termination of other machines, so do a manual filtering here as well
         if tag not in instance['Tags']:
             continue
         logger.info("Terminating instance {}".format(instance['InstanceId']))
-        instances.append(instance['InstanceId'])
-    if instances:
-        ec2.terminate_instances(InstanceIds=instances)
+        ec2.terminate_instances(InstanceIds=instance['InstanceId'])
 
 
 @cachetools.cached(cache={}, key=tuple)
