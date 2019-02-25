@@ -634,7 +634,7 @@ def get_ec2_performance(prices_df, perf_df=None, update=None, expire=None, **fil
         ami = aws_get_latest_ami(arch=instance.cpu_arch)
         bench_args.append([ami, instance, benchmarks_to_run])
     if bench_args:
-        pool = ThreadPool(16)
+        pool = ThreadPool(4)
         results = pool.map(run_benchmarks, bench_args)
         try:
             return pd.concat(results, ignore_index=True, sort=False)
