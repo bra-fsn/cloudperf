@@ -631,15 +631,6 @@ def get_ec2_performance(prices_df, perf_df=None, update=None, expire=None, **fil
         if not benchmarks_to_run:
             # leave this instance out if there is no benchmark to run
             continue
-        if instance.instanceType not in (
-                                        # 't3.xlarge',
-                                        # 'a1.xlarge',
-                                         'm5d.xlarge'
-                                         #, 'c5.xlarge'
-                                         ):
-            continue
-        print(instance.instanceType, len(benchmarks_to_run))
-        #continue
         ami = aws_get_latest_ami(arch=instance.cpu_arch)
         bench_args.append([ami, instance, benchmarks_to_run])
     if bench_args:
