@@ -190,7 +190,7 @@ def terminate_instances():
         if tag not in instance['Tags']:
             continue
         logger.info("Terminating instance {}".format(instance['InstanceId']))
-        ec2.terminate_instances(InstanceIds=instance['InstanceId'])
+        ec2.terminate_instances(InstanceIds=[instance['InstanceId']])
 
 
 @cachetools.cached(cache={}, key=tuple)
