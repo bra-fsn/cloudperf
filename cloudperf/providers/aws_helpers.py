@@ -58,6 +58,8 @@ ec2_specs = {'KeyName': ssh_keyname, 'SecurityGroups': ['tech-ssh'],
              'UserData': userdata_script,
              'TagSpecifications': [{'ResourceType': 'instance',
                                     'Tags': [{'Value': 'cloudperf', 'Key': 'Application'}]},
+                                   {'ResourceType': 'spot-instances-request',
+                                    'Tags': [{'Value': 'cloudperf', 'Key': 'Application'}]},
                                    {'ResourceType': 'volume',
                                     'Tags': [{'Value': 'cloudperf', 'Key': 'Application'}]}]}
 
