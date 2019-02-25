@@ -140,6 +140,11 @@ benchmarks = {
     #                          'cmd': "sysbench --threads={numcpu} " + mysql_sysbench_common_opts + " /usr/share/sysbench/tests/include/oltp_legacy/oltp.lua run | fgrep 'queries:' | egrep -o '[0-9.]+ per sec' | awk '{{print $1}}'",
     #                          'images': {'x86_64': 'severalnines/sysbench'}
     #                          },
+    'sysbench:cpu': {'program': 'sysbench',
+                     'name': 'sysbench CPU performance test',
+                             'cmd': "sysbench cpu --max-time=10 --num-threads={numcpu} run | fgrep 'events per second' | egrep -o '[0-9.]+'",
+                             'images': {'x86_64': 'severalnines/sysbench'}
+                     },
     'stress-ng:matrixprod': {'program': 'stress-ng',
                              'name': 'stress-ng matrixprod',
                              'cmd': "--cpu {numcpu} --cpu-method matrixprod -t 10 --metrics 2>&1 | tail -1 | awk '{{print $9}}'",
