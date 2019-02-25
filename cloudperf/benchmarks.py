@@ -142,18 +142,18 @@ benchmarks = {
     #                          },
     'sysbench:cpu': {'program': 'sysbench',
                      'name': 'sysbench CPU performance test',
-                             'cmd': "sysbench cpu --max-time=10 --num-threads={numcpu} run | fgrep 'events per second' | egrep -o '[0-9.]+'",
+                             'cmd': "sysbench cpu --max-time=5 --num-threads={numcpu} run | fgrep 'events per second' | egrep -o '[0-9.]+'",
                              'images': {'x86_64': 'severalnines/sysbench'}
                      },
     'stress-ng:matrixprod': {'program': 'stress-ng',
                              'name': 'stress-ng matrixprod',
-                             'cmd': "--cpu {numcpu} --cpu-method matrixprod -t 10 --metrics 2>&1 | tail -1 | awk '{{print $9}}'",
+                             'cmd': "--cpu {numcpu} --cpu-method matrixprod -t 5 --metrics 2>&1 | tail -1 | awk '{{print $9}}'",
                              'images': {'x86_64': 'brafsn/stress-ng-x86_64:{}'.format(stress_ng_tag),
                                         'arm64': 'brafsn/stress-ng-arm64:{}'.format(stress_ng_tag)}
                              },
     'stress-ng:zlib': {'program': 'stress-ng',
                        'name': 'stress-ng zlib',
-                       'cmd': "--zlib {numcpu} --zlib-method fixed -t 10 --metrics 2>&1 | tail -1 | awk '{{print $9}}'",
+                       'cmd': "--zlib {numcpu} --zlib-method fixed -t 5 --metrics 2>&1 | tail -1 | awk '{{print $9}}'",
                        'images': {'x86_64': 'brafsn/stress-ng-x86_64:{}'.format(stress_ng_tag),
                                   'arm64': 'brafsn/stress-ng-arm64:{}'.format(stress_ng_tag)}
                        }
