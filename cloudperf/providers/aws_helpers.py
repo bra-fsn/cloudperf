@@ -5,6 +5,7 @@ import json
 import time
 import threading
 import logging
+import functools
 from logging import NullHandler
 import copy
 from datetime import datetime
@@ -353,6 +354,18 @@ def get_ssh_connection(instance, user, pkey, timeout):
     return ssh
 
 
+def log_exception(function):
+    @functools.wraps(function)
+    def wrapper(*args, **kwargs):
+        try:
+            return function(*args, **kwargs)
+        except Exception:
+            err = "Exception in {}".format(function.__name__)
+            logging.exception(err)
+    return wrapper
+
+
+@log_exception
 def run_benchmarks(args):
     threading.current_thread().name = 'run_bench'
     ami, instance, tags, benchmarks_to_run = args
