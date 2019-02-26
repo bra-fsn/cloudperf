@@ -495,8 +495,6 @@ def run_benchmarks(args):
         ec2.terminate_instances(InstanceIds=[instance_id])
         return None
 
-    # give some more time for the machine to be ready and to settle down
-    time.sleep(60)
     sftp = ssh.open_sftp()
 
     # write init_script
@@ -519,6 +517,9 @@ def run_benchmarks(args):
             stdout.read(), stderr.read()))
         ec2.terminate_instances(InstanceIds=[instance_id])
         return None
+
+    # give some more time for the machine to be ready and to settle down
+    time.sleep(20)
 
     results = []
     for name, bench_data in benchmarks_to_run.items():
