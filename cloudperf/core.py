@@ -99,6 +99,7 @@ def get_combined(prices=prices_url, perf=performance_url):
     perf_df = get_performance(prices=prices, perf=perf)
     combined_df = perf_df.merge(prices_df, how='left', on=['provider', 'instanceType'], suffixes=('', '_prices'))
     combined_df['perf/price/cpu'] = combined_df['benchmark_score']/combined_df['price']/combined_df['benchmark_cpus']
+    combined_df['perf/price'] = combined_df['benchmark_score']/combined_df['price']
 
     return combined_df
 

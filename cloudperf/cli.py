@@ -148,7 +148,7 @@ perf_defcols = ['instanceType', 'benchmark_id', 'benchmark_cpus']
 @click.option('--prices', help='Prices URL (pandas.read_json)', default=prices_url, show_default=True)
 @click.option('--perf', help='Performance URL (pandas.read_json)', default=performance_url, show_default=True)
 @click.option('--cols', help='Columns to show', default=perf_defcols, show_default=True, multiple=True)
-@click.option('--sort', help='Sort by these columns', default=['perf/price/cpu'], multiple=True, show_default=True)
+@click.option('--sort', help='Sort by these columns', default=['perf/price'], multiple=True, show_default=True)
 @click.option('--filter', help="Apply filters like --filter 'benchmark_cpus>4' --filter benchmark_id=sng_zlib", default=[], multiple=True)
 @click.option('--combined/--no-combined',
               help='Show combined prices/performance data or just performance',
@@ -158,9 +158,9 @@ def performance(prices, perf, cols, sort, filter, combined):
     if combined:
         df = get_combined(prices, perf)
         if set(cols) == set(perf_defcols):
-            # if we're using the default columns, add perf/price/cpu and other
+            # if we're using the default columns, add perf/price and other
             # infos as well
-            cols.extend(['perf/price/cpu', 'region', 'spot-az'])
+            cols.extend(['perf/price', 'region', 'spot-az'])
             # keep order and remove duplicates
             seen = {}
             cols = [seen.setdefault(x, x) for x in cols if x not in seen]
