@@ -94,7 +94,7 @@ def get_performance(prices=None, perf=None, update=False, expire=False, tags=[],
     else:
         resdf = pd.concat([cp.get_performance(get_prices(prices), tags=tags) for cp in get_providers()], ignore_index=True, sort=False)
     if maxcpu:
-        return resdf.sort_values('benchmark_cpus', ascending=False).drop_duplicates(['instanceType'])
+        return resdf.sort_values('benchmark_cpus', ascending=False).drop_duplicates(['instanceType', 'benchmark_id'])
     else:
         return resdf
 
@@ -102,9 +102,7 @@ def get_performance(prices=None, perf=None, update=False, expire=False, tags=[],
 @cachetools.cached(cache={})
 def get_combined(prices=prices_url, perf=performance_url, maxcpu=False):
     prices_df = get_prices(prices=prices)
-    perf_df = get_performance(prices=prices, perf=perf)
-    if maxcpu:
-        perf_df = perf_df.sort_values('benchmark_cpus', ascending=False).drop_duplicates(['instanceType'])
+    perf_df = get_performance(prices=prices, perf=perf, maxcpu=maxcpu)
     combined_df = perf_df.merge(prices_df, how='left', on=['provider', 'instanceType'], suffixes=('', '_prices'))
     combined_df['perf/price/cpu'] = combined_df['benchmark_score']/combined_df['price']/combined_df['benchmark_cpus']
     combined_df['perf/price'] = combined_df['benchmark_score']/combined_df['price']
