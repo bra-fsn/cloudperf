@@ -153,20 +153,27 @@ perf_defcols = ['instanceType', 'benchmark_id', 'benchmark_cpus']
 @click.option('--combined/--no-combined',
               help='Show combined prices/performance data or just performance',
               default=True, show_default=True)
-def performance(prices, perf, cols, sort, filter, combined):
+@click.option('--maxcpu/--no-maxcpu',
+              help='Show performance only for maximum number of CPUs',
+              default=True, show_default=True)
+def performance(prices, perf, cols, sort, filter, combined, maxcpu):
     cols = list(cols)
     if combined:
-        df = get_combined(prices, perf)
+        df = get_combined(prices, perf, maxcpu)
         if set(cols) == set(perf_defcols):
             # if we're using the default columns, add perf/price and other
             # infos as well
-            cols.extend(['perf/price', 'region', 'spot-az'])
+            cols.extend(['perf/price', 'price', 'benchmark_score', 'region', 'spot-az'])
             # keep order and remove duplicates
             seen = {}
             cols = [seen.setdefault(x, x) for x in cols if x not in seen]
     else:
         sort = ['benchmark_score']
-        df = get_performance(prices, perf)
+        df = get_performance(prices, perf, maxcpu=maxcpu)
+        if set(cols) == set(perf_defcols):
+            cols.extend(['benchmark_score'])
+            seen = {}
+            cols = [seen.setdefault(x, x) for x in cols if x not in seen]
     df = df_filter(df, filter)
-    with pd.option_context('display.max_rows', None, 'display.max_columns', None):
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.float_format', '{:.4f}'.format):
         print(df.sort_values(list(sort))[list(cols)].to_string(index=False))

@@ -75,7 +75,7 @@ def args_cache_key(*args, **kw):
 # list is unhashable, so we use only the positional args for the cache key.
 # This means tags have to be specified as a kw arg.
 @cachetools.cached(cache={}, key=args_cache_key)
-def get_performance(prices=None, perf=None, update=False, expire=False, tags=[]):
+def get_performance(prices=None, perf=None, update=False, expire=False, tags=[], maxcpu=False):
     # if we got a stored file and update is True, merge the two by overwriting
     # old data with new (and leaving not updated old data intact).
     # if expire is set only update old data if the expiry period is passed
@@ -84,19 +84,27 @@ def get_performance(prices=None, perf=None, update=False, expire=False, tags=[])
         new = pd.concat([cp.get_performance(get_prices(prices), old, update, expire, tags=tags) for cp in get_providers()],
                         ignore_index=True, sort=False)
         if new.empty:
-            return old
-        # update rows which have the same values in the following columns
-        indices = ['provider', 'instanceType', 'benchmark_id', 'benchmark_cpus']
-        return new.set_index(indices).combine_first(old.set_index(indices)).reset_index()
-    if perf:
-        return pd.read_json(perf, orient='records')
-    return pd.concat([cp.get_performance(get_prices(prices), tags=tags) for cp in get_providers()], ignore_index=True, sort=False)
+            resdf = old
+        else:
+            # update rows which have the same values in the following columns
+            indices = ['provider', 'instanceType', 'benchmark_id', 'benchmark_cpus']
+            resdf = new.set_index(indices).combine_first(old.set_index(indices)).reset_index()
+    elif perf:
+        resdf = pd.read_json(perf, orient='records')
+    else:
+        resdf = pd.concat([cp.get_performance(get_prices(prices), tags=tags) for cp in get_providers()], ignore_index=True, sort=False)
+    if maxcpu:
+        return resdf.sort_values('benchmark_cpus', ascending=False).drop_duplicates(['instanceType'])
+    else:
+        return resdf
 
 
 @cachetools.cached(cache={})
-def get_combined(prices=prices_url, perf=performance_url):
+def get_combined(prices=prices_url, perf=performance_url, maxcpu=False):
     prices_df = get_prices(prices=prices)
     perf_df = get_performance(prices=prices, perf=perf)
+    if maxcpu:
+        perf_df = perf_df.sort_values('benchmark_cpus', ascending=False).drop_duplicates(['instanceType'])
     combined_df = perf_df.merge(prices_df, how='left', on=['provider', 'instanceType'], suffixes=('', '_prices'))
     combined_df['perf/price/cpu'] = combined_df['benchmark_score']/combined_df['price']/combined_df['benchmark_cpus']
     combined_df['perf/price'] = combined_df['benchmark_score']/combined_df['price']
