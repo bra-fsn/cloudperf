@@ -68,14 +68,20 @@ def get_prices(prices=None, update=False):
     return pd.concat([cp.get_prices() for cp in get_providers()], ignore_index=True, sort=False)
 
 
-@cachetools.cached(cache={})
-def get_performance(prices=None, perf=None, update=False, expire=False):
+def args_cache_key(*args, **kw):
+    return args
+
+
+# list is unhashable, so we use only the positional args for the cache key.
+# This means tags have to be specified as a kw arg.
+@cachetools.cached(cache={}, key=args_cache_key)
+def get_performance(prices=None, perf=None, update=False, expire=False, tags=[]):
     # if we got a stored file and update is True, merge the two by overwriting
     # old data with new (and leaving not updated old data intact).
     # if expire is set only update old data if the expiry period is passed
     if perf and update:
         old = pd.read_json(perf, orient='records')
-        new = pd.concat([cp.get_performance(get_prices(prices), old, update, expire) for cp in get_providers()],
+        new = pd.concat([cp.get_performance(get_prices(prices), old, update, expire, tags=tags) for cp in get_providers()],
                         ignore_index=True, sort=False)
         if new.empty:
             return old
@@ -84,7 +90,7 @@ def get_performance(prices=None, perf=None, update=False, expire=False):
         return new.set_index(indices).combine_first(old.set_index(indices)).reset_index()
     if perf:
         return pd.read_json(perf, orient='records')
-    return pd.concat([cp.get_performance(get_prices(prices)) for cp in get_providers()], ignore_index=True, sort=False)
+    return pd.concat([cp.get_performance(get_prices(prices), tags=tags) for cp in get_providers()], ignore_index=True, sort=False)
 
 
 @cachetools.cached(cache={})

@@ -1,5 +1,6 @@
 import os
 import re
+import traceback
 import click
 import pandas as pd
 import pytimeparse
@@ -95,20 +96,23 @@ def write_prices(prices, file, s3_bucket, update):
 @click.option('--terminate/--no-terminate',
               help='Terminate tagged images at the end of the run to clean up leftover ones',
               default=True, show_default=True)
-def write_performance(prices, perf, file, s3_bucket, update, expire, terminate):
+@click.option('--tag', help='Add these tags to EC2 instances (key:value format)', multiple=True)
+def write_performance(prices, perf, file, s3_bucket, update, expire, terminate, tag):
+    tags = [i.split(':', 1) for i in tag]
     # convert human readable to seconds
     expire = pytimeparse.parse(expire)
     comp = get_comp(file)
     if not update:
         perf = None
     try:
-        get_performance(prices, perf, update, expire).to_json(file, orient='records', compression=comp, date_unit='s')
+        get_performance(prices, perf, update, expire, tags=tags).to_json(file, orient='records', compression=comp, date_unit='s')
         if s3_bucket is not None:
             s3_upload(s3_bucket, file)
     except Exception:
-        pass
-    if terminate:
-        terminate_instances()
+        traceback.print_exc()
+    finally:
+        if terminate:
+            terminate_instances()
 
 
 @main.command()

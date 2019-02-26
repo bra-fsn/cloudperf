@@ -355,8 +355,12 @@ def get_ssh_connection(instance, user, pkey, timeout):
 
 def run_benchmarks(args):
     threading.current_thread().name = 'run_bench'
-    ami, instance, benchmarks_to_run = args
+    ami, instance, tags, benchmarks_to_run = args
     specs = copy.deepcopy(ec2_specs)
+    # extend tagspecs with user specified tags
+    tagspecs = [{'Key': k, 'Value': v} for k, v in tags]
+    for i in specs.get('TagSpecifications', []):
+        i['Tags'].extend(tagspecs)
     bdmap = ami['BlockDeviceMappings']
     try:
         # You cannot specify the encrypted flag if specifying a snapshot id in a block device mapping.
@@ -614,7 +618,7 @@ def get_benchmarks_to_run(instance, perf_df, expire):
     return my_benchmarks
 
 
-def get_ec2_performance(prices_df, perf_df=None, update=None, expire=None, **filter_opts):
+def get_ec2_performance(prices_df, perf_df=None, update=None, expire=None, tags=[], **filter_opts):
     # drop spot instances
     prices_df = prices_df.drop(prices_df[prices_df.spot == True].index)
     # remove duplicate instances, so we'll have a list of all on-demand instances
@@ -632,7 +636,7 @@ def get_ec2_performance(prices_df, perf_df=None, update=None, expire=None, **fil
             # leave this instance out if there is no benchmark to run
             continue
         ami = aws_get_latest_ami(arch=instance.cpu_arch)
-        bench_args.append([ami, instance, benchmarks_to_run])
+        bench_args.append([ami, instance, tags, benchmarks_to_run])
     if bench_args:
         pool = ThreadPool(4)
         results = pool.map(run_benchmarks, bench_args)
