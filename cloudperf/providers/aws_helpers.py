@@ -53,6 +53,7 @@ shutdown +120"""
 ssh_keyname = 'batch'
 ssh_user = 'ec2-user'
 ssh_get_conn_timeout = 600
+ssh_exec_timeout = 600
 ec2_specs = {'KeyName': ssh_keyname, 'SecurityGroups': ['tech-ssh'],
              'MaxCount': 1, 'MinCount': 1, 'Monitoring': {'Enabled': False},
              'InstanceInitiatedShutdownBehavior': 'terminate',
@@ -508,7 +509,7 @@ def run_benchmarks(args):
     # try stop all unnecessary services in order to provide a more reliable result
     for i in range(4):
         logger.info("Trying to execute init_script, try #{}".format(i))
-        stdin, stdout, stderr = ssh.exec_command("./init_script")
+        stdin, stdout, stderr = ssh.exec_command("./init_script", timeout=ssh_exec_timeout)
         if stdout.channel.recv_exit_status() == 0:
             break
         time.sleep(5)
@@ -522,100 +523,105 @@ def run_benchmarks(args):
     time.sleep(20)
 
     results = []
-    for name, bench_data in benchmarks_to_run.items():
-        threading.current_thread().name = '{}/{}'.format(instance_id, name)
-        docker_img = bench_data['images'].get(instance.cpu_arch, None)
-        if not docker_img:
-            logger.error("Couldn't find docker image for {}/{}".format(name, instance.cpu_arch))
-            continue
-        # write files for the benchmark
-        for name, contents in bench_data['images'].get('files', {}):
-            sftp_write_file(sftp, name, contents)
+    try:
+        for name, bench_data in benchmarks_to_run.items():
+            threading.current_thread().name = '{}/{}'.format(instance_id, name)
+            docker_img = bench_data['images'].get(instance.cpu_arch, None)
+            if not docker_img:
+                logger.error("Couldn't find docker image for {}/{}".format(name, instance.cpu_arch))
+                continue
+            # write files for the benchmark
+            for name, contents in bench_data['images'].get('files', {}):
+                sftp_write_file(sftp, name, contents)
 
-        # docker pull and wait some time
-        for i in range(4):
-            logger.info("Docker pull, try #{}".format(i))
-            stdin, stdout, stderr = ssh.exec_command("docker pull {}; sync; sleep 10".format(docker_img))
-            if stdout.channel.recv_exit_status() == 0:
-                break
-            time.sleep(5)
-        else:
-            logger.error("Couldn't pull docker image {}, {}".format(
-                stdout.read(), stderr.read()))
-            continue
-
-        if 'composefile' in bench_data:
-            sftp_write_file(sftp, 'docker-compose.yml', bench_data['composefile'], 0o644)
-            # start docker compose
-            stdin, stdout, stderr = ssh.exec_command("docker-compose up -d")
-            if stdout.channel.recv_exit_status() != 0:
-                logger.error("Couldn't start docker compose {}, {}".format(
+            # docker pull and wait some time
+            for i in range(4):
+                logger.info("Docker pull, try #{}".format(i))
+                stdin, stdout, stderr = ssh.exec_command("docker pull {}; sync; sleep 10".format(docker_img), timeout=ssh_exec_timeout)
+                if stdout.channel.recv_exit_status() == 0:
+                    break
+                time.sleep(5)
+            else:
+                logger.error("Couldn't pull docker image {}, {}".format(
                     stdout.read(), stderr.read()))
                 continue
 
-            if 'after_compose_up' in bench_data:
-                sftp_write_file(sftp, 'after_compose_up', bench_data['after_compose_up'])
-                stdin, stdout, stderr = ssh.exec_command("./after_compose_up")
+            if 'composefile' in bench_data:
+                sftp_write_file(sftp, 'docker-compose.yml', bench_data['composefile'], 0o644)
+                # start docker compose
+                stdin, stdout, stderr = ssh.exec_command("docker-compose up -d", timeout=ssh_exec_timeout)
                 if stdout.channel.recv_exit_status() != 0:
-                    logger.error("Couldn't start after_compose_up script {}, {}".format(
+                    logger.error("Couldn't start docker compose {}, {}".format(
                         stdout.read(), stderr.read()))
                     continue
 
-        if 'cpus' in bench_data and bench_data['cpus']:
-            cpulist = bench_data['cpus']
-        else:
-            cpulist = range(1, instance.vcpu+1)
+                if 'after_compose_up' in bench_data:
+                    sftp_write_file(sftp, 'after_compose_up', bench_data['after_compose_up'])
+                    stdin, stdout, stderr = ssh.exec_command("./after_compose_up", timeout=ssh_exec_timeout)
+                    if stdout.channel.recv_exit_status() != 0:
+                        logger.error("Couldn't start after_compose_up script {}, {}".format(
+                            stdout.read(), stderr.read()))
+                        continue
 
-        # default options if missing
-        docker_opts = bench_data.get('docker_opts', '--network none')
-        for i in cpulist:
-            ssh.exec_command("sync")
-            dcmd = bench_data['cmd'].format(numcpu=i)
-            cmd = 'docker run --rm {} {} {}'.format(docker_opts, docker_img, dcmd)
-            scores = []
-            for it in range(bench_data.get('iterations', 3)):
-                logger.info("Running command: {}, iter: #{}".format(cmd, it))
-                stdin, stdout, stderr = ssh.exec_command(cmd)
-                ec = stdout.channel.recv_exit_status()
-                stdo = stdout.read()
-                stdrr = stderr.read()
-                if ec == 0:
-                    try:
-                        scores.append(float(stdo))
-                    except Exception:
-                        logger.info(
-                            "Couldn't parse output: {}".format(stdo))
-                        scores.append(None)
-                else:
-                    logger.info("Non-zero exit code {}, {}, {}".format(ec, stdo, stdrr))
-            aggr_f = bench_data.get('score_aggregation', max)
-            try:
-                score = aggr_f(scores)
-            except Exception:
-                score = None
-            results.append({'instanceType': instance.instanceType,
-                            'benchmark_cpus': i, 'benchmark_score': score, 'benchmark_id': name,
-                            'benchmark_name': bench_data.get('name'),
-                            'benchmark_cmd': cmd, 'benchmark_program': bench_data.get('program'),
-                            'date': datetime.now()})
-        if 'composefile' in bench_data:
-            stdin, stdout, stderr = ssh.exec_command("docker-compose down -v")
-            if stdout.channel.recv_exit_status() != 0:
-                logger.error("Couldn't stop docker compose: {}, {}".format(
-                    stdout.read(), stderr.read()))
-                continue
-            if 'after_compose_down' in bench_data:
-                sftp_write_file(sftp, 'after_compose_down', bench_data['after_compose_down'])
-                stdin, stdout, stderr = ssh.exec_command("./after_compose_down")
+            if 'cpus' in bench_data and bench_data['cpus']:
+                cpulist = bench_data['cpus']
+            else:
+                cpulist = range(1, instance.vcpu+1)
+
+            # default options if missing
+            docker_opts = bench_data.get('docker_opts', '--network none')
+            for i in cpulist:
+                ssh.exec_command("sync", timeout=ssh_exec_timeout)
+                dcmd = bench_data['cmd'].format(numcpu=i)
+                cmd = 'docker run --rm {} {} {}'.format(docker_opts, docker_img, dcmd)
+                scores = []
+                for it in range(bench_data.get('iterations', 3)):
+                    logger.info("Running command: {}, iter: #{}".format(cmd, it))
+                    stdin, stdout, stderr = ssh.exec_command(cmd, timeout=ssh_exec_timeout)
+                    ec = stdout.channel.recv_exit_status()
+                    stdo = stdout.read()
+                    stdrr = stderr.read()
+                    if ec == 0:
+                        try:
+                            scores.append(float(stdo))
+                        except Exception:
+                            logger.info(
+                                "Couldn't parse output: {}".format(stdo))
+                            scores.append(None)
+                    else:
+                        logger.info("Non-zero exit code {}, {}, {}".format(ec, stdo, stdrr))
+                aggr_f = bench_data.get('score_aggregation', max)
+                try:
+                    score = aggr_f(scores)
+                except Exception:
+                    score = None
+                results.append({'instanceType': instance.instanceType,
+                                'benchmark_cpus': i, 'benchmark_score': score, 'benchmark_id': name,
+                                'benchmark_name': bench_data.get('name'),
+                                'benchmark_cmd': cmd, 'benchmark_program': bench_data.get('program'),
+                                'date': datetime.now()})
+            if 'composefile' in bench_data:
+                stdin, stdout, stderr = ssh.exec_command("docker-compose down -v", timeout=ssh_exec_timeout)
                 if stdout.channel.recv_exit_status() != 0:
-                    logger.error("Couldn't start after_compose_down script: {}, {}".format(
+                    logger.error("Couldn't stop docker compose: {}, {}".format(
                         stdout.read(), stderr.read()))
                     continue
+                if 'after_compose_down' in bench_data:
+                    sftp_write_file(sftp, 'after_compose_down', bench_data['after_compose_down'])
+                    stdin, stdout, stderr = ssh.exec_command("./after_compose_down", timeout=ssh_exec_timeout)
+                    if stdout.channel.recv_exit_status() != 0:
+                        logger.error("Couldn't start after_compose_down script: {}, {}".format(
+                            stdout.read(), stderr.read()))
+                        continue
+    except Exception:
+        logger.exception("Error while executing benchmarks")
 
     logger.info("Finished with instance, terminating")
     ec2.terminate_instances(InstanceIds=[instance_id])
-
-    return pd.DataFrame.from_dict(results)
+    if results:
+        return pd.DataFrame.from_dict(results)
+    else:
+        return None
 
 
 def get_benchmarks_to_run(instance, perf_df, expire):
