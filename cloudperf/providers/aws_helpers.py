@@ -573,7 +573,11 @@ def run_benchmarks(args):
             for i in cpulist:
                 ssh.exec_command("sync", timeout=ssh_exec_timeout)
                 dcmd = bench_data['cmd'].format(numcpu=i)
-                cmd = 'docker run --rm {} {} {}'.format(docker_opts, docker_img, dcmd)
+                if 'timeout' in bench_data:
+                    timeout_cmd = 'timeout -k {} {} '.format(bench_data['timeout']+5, bench_data['timeout'])
+                else:
+                    timeout_cmd = ''
+                cmd = '{}docker run --rm {} {} {}'.format(timeout_cmd, docker_opts, docker_img, dcmd)
                 scores = []
                 for it in range(bench_data.get('iterations', 3)):
                     logger.info("Running command: {}, iter: #{}".format(cmd, it))

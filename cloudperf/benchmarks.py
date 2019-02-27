@@ -21,6 +21,8 @@
 #            so if the benchmark couldn't run on that instance (for example because
 #            it doesn't have the needed amount of memory), we won't re-run the
 #            benchmark forever, only after the expiration period is over.
+#   - `timeout`: the cmd will be started with `timeout n`. This helps preventing a
+#           stuck script to run forever.
 #   - `cpus`: if not specified, the command will be run once for each CPU, having
 #             the actual number of CPUs in the `numcpu` variable. For a 8 CPU
 #             machine it means 8 runs with `numcpu` being 1,2,3,4,5,6,7,8.
@@ -149,6 +151,7 @@ benchmarks = {
                                 'name': 'Random RW 512 bytes O_DIRECT, O_DSYNC',
                                 'cmd': "--hdd {numcpu} --hdd-opts direct,dsync,rd-rnd,wr-rnd --hdd-write-size 512 -t 5 --metrics 2>&1 | tail -1 | awk '{{print $9}}'",
                                 'cpus': [256],
+                                'timeout': 10,
                                 'images': {'x86_64': 'brafsn/stress-ng-x86_64:{}'.format(stress_ng_tag),
                                            'arm64': 'brafsn/stress-ng-arm64:{}'.format(stress_ng_tag)},
                                 },
@@ -156,18 +159,21 @@ benchmarks = {
                                'name': 'Random RW 4k O_DIRECT, O_DSYNC',
                                'cmd': "--hdd {numcpu} --hdd-opts direct,dsync,rd-rnd,wr-rnd --hdd-write-size 4k -t 5 --metrics 2>&1 | tail -1 | awk '{{print $9}}'",
                                'cpus': [256],
+                               'timeout': 10,
                                'images': {'x86_64': 'brafsn/stress-ng-x86_64:{}'.format(stress_ng_tag),
                                           'arm64': 'brafsn/stress-ng-arm64:{}'.format(stress_ng_tag)},
                                },
     'stress-ng:crc16': {'program': 'stress-ng',
                         'name': 'compute 1024 rounds of CCITT CRC16 on random data',
                         'cmd': "--cpu {numcpu} --cpu-method crc16 -t 5 --metrics 2>&1 | tail -1 | awk '{{print $9}}'",
+                        'timeout': 10,
                         'images': {'x86_64': 'brafsn/stress-ng-x86_64:{}'.format(stress_ng_tag),
                                    'arm64': 'brafsn/stress-ng-arm64:{}'.format(stress_ng_tag)},
                         },
     'stress-ng:matrixprod': {'program': 'stress-ng',
                              'name': 'matrix product of two 128 x 128 matrices of double floats',
                              'cmd': "--cpu {numcpu} --cpu-method matrixprod -t 5 --metrics 2>&1 | tail -1 | awk '{{print $9}}'",
+                             'timeout': 10,
                              'images': {'x86_64': 'brafsn/stress-ng-x86_64:{}'.format(stress_ng_tag),
                                         'arm64': 'brafsn/stress-ng-arm64:{}'.format(stress_ng_tag)},
                              }
