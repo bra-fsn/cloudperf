@@ -141,7 +141,7 @@ concurrency (meaning the benchmark program ran with vCPU parallelism).
 If you want to see benchmark results for each number of vCPUs, you can use for
 example:
 ```
-# cloudperf performance --no-combined --no-maxcpu --filter instanceType=m5.24xlarge --filter benchmark_id=stress-ng:crc16
+$ cloudperf performance --no-combined --no-maxcpu --filter instanceType=m5.24xlarge --filter benchmark_id=stress-ng:crc16
 instanceType     benchmark_id  benchmark_cpus  benchmark_score
 m5.24xlarge  stress-ng:crc16               1         153.4700
 m5.24xlarge  stress-ng:crc16               2         305.4200
