@@ -12,7 +12,7 @@ setuptools.setup(
     name="cloudperf",
     version=version,
     author="NAGY, Attila",
-    author_email="bra@fsn.hu",
+    author_email="nagy.attila@gmail.com",
     description="Relative performance index for cloud services",
     long_description=long_description,
     long_description_content_type="text/markdown",
