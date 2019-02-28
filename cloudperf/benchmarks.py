@@ -34,7 +34,7 @@
 #                          passed as a list of floats. Default: max
 
 crdb_tag = 'v2.1.5'
-stress_ng_tag = '0.09.54'
+stress_ng_tag = 'latest'
 
 crdb_compose_yml = """version: '3'
 
