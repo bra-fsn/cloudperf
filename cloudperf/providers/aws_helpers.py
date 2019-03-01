@@ -6,6 +6,7 @@ import time
 import threading
 import logging
 import functools
+import pickle
 from logging import NullHandler
 import copy
 from datetime import datetime
@@ -452,7 +453,7 @@ def run_benchmarks(args):
                 # certain instances are not allowed to be created
                 logger.error("Unsupported instance {}: {}, specs: {}".format(
                     instance.instanceType, e.response['Error']['Message'],
-                    base64.b64encode(str(create_specs))))
+                    base64.b64encode(pickle.dumps(create_specs))))
                 break
 
             logger.error("Other error while creating {}: {}, code: {}".format(
