@@ -27,6 +27,8 @@ class CloudProvider(object):
         if perf_df is not None:
             perf_df = perf_df[perf_df['provider'] == self.provider]
         instances = aws_helpers.get_ec2_performance(prices_df, perf_df, update, expire, tags, **filters)
+        if instances.empty:
+            return instances
         # add a provider column
         instances['provider'] = self.provider
 
