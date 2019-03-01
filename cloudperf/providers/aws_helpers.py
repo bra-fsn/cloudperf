@@ -21,7 +21,6 @@ from dateutil import parser
 from botocore.exceptions import ClientError
 from cloudperf.benchmarks import benchmarks
 from cloudperf.core import sftp_write_file, DictQuery
-from cloudperf.providers.aws import region_map
 
 
 session = boto3.session.Session()
@@ -277,6 +276,7 @@ def get_ec2_prices(**filter_opts):
         DataFrame with instance attributes and pricing
 
     """
+    from cloudperf.providers.aws import region_map
     prices = []
     params = {}
 
