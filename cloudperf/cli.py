@@ -95,7 +95,7 @@ def write_prices(prices, file, s3_bucket, update):
 @click.option('--expire', help='Re-run benchmarks after this time', default='12w', show_default=True)
 @click.option('--terminate/--no-terminate',
               help='Terminate tagged images at the end of the run to clean up leftover ones',
-              default=True, show_default=True)
+              default=False, show_default=True)
 @click.option('--tag', help='Add these tags to EC2 instances (key:value format)', multiple=True)
 def write_performance(prices, perf, file, s3_bucket, update, expire, terminate, tag):
     tags = [i.split(':', 1) for i in tag]
