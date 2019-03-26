@@ -69,7 +69,16 @@ def get_prices(prices=None, update=False):
 
 
 def args_cache_key(*args, **kw):
-    return args
+    args = list(args)
+    for k, v in kw.items():
+        if isinstance(v, list):
+            v = tuple(v)
+        try:
+            hash(v)
+        except Exception:
+            continue
+        args.append((k, v))
+    return tuple(args)
 
 
 # list is unhashable, so we use only the positional args for the cache key.
