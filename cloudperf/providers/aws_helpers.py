@@ -436,6 +436,13 @@ def run_benchmarks(args):
                     base64.b64encode(pickle.dumps(create_specs))))
                 break
 
+            if e.response['Error']['Code'] == 'InstanceCreditSpecification.NotSupported':
+                # currently t1.micro instance. If we would try to benchmark these,
+                # we would get inconsistent results, so skip them.
+                logger.error("{} doesn't support unlimited credits: {}".format(
+                    instance.instanceType, e.response['Error']['Message']))
+                break
+
             logger.error("Other error while creating {}: {}, code: {}".format(
                 instance.instanceType, e, DictQuery(e.response).get(['Error', 'Code'])))
             time.sleep(1.2**retcount)
