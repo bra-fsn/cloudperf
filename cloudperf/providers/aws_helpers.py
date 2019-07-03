@@ -395,11 +395,16 @@ def run_benchmarks(args):
                 continue
 
             if e.response['Error']['Code'] == 'InsufficientInstanceCapacity':
-                logger.info('Insufficient spot capacity for {}: {}'.format(
+                logger.info('Insufficient capacity for {}: {}'.format(
                     instance.instanceType, e))
-                # retry with on demand
-                create_specs = specs
-                retcount = 0
+                if create_specs == specs:
+                    # if it was on-demand retry until the counter expires
+                    time.sleep(1.2**retcount)
+                    retcount += 1
+                else:
+                    # retry with on demand if this was with spot
+                    create_specs = specs
+                    retcount = 0
                 continue
 
             if e.response['Error']['Code'] == 'SpotMaxPriceTooLow':
