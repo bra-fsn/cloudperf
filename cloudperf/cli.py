@@ -1,11 +1,17 @@
 import os
 import re
+import signal
 import traceback
 import click
 import pandas as pd
 import pytimeparse
 import boto3
 from cloudperf import get_prices, get_performance, get_combined, prices_url, performance_url, terminate_instances
+try:
+    import faulthandler
+    faulthandler.register(signal.SIGUSR1)
+except ImportError:
+    pass
 
 
 @click.group()
