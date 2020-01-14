@@ -44,8 +44,7 @@ ec2_specs = {'KeyName': ssh_keyname, 'SecurityGroups': ['tech-ssh'],
                                     'Tags': [{'Value': 'cloudperf', 'Key': 'Application'}]}]}
 
 instance_init_script = """#!/bin/sh
-
-sudo systemctl | grep running | awk '{print $1}' | egrep -v '(auditd|dbus|docker|syslog|sshd|systemd|\.scope|network\.service)' | xargs sudo systemctl stop
+sudo systemctl stop acpid chronyd crond ecs postfix
 sudo curl -L https://github.com/docker/compose/releases/download/1.23.2/docker-compose-`uname -s`-`uname -m` -o /usr/local/bin/docker-compose
 sudo chmod +x /usr/local/bin/docker-compose
 """
