@@ -655,7 +655,7 @@ def get_ec2_performance(prices_df, perf_df=None, update=None, expire=None, tags=
         bench_args.append([ami, instance, tags, benchmarks_to_run])
     if bench_args:
         pool = ThreadPool(4)
-        results = pool.map(run_benchmarks, bench_args)
-        if results and results != [None] * len(results):
+        results = [res for res in pool.map(run_benchmarks, bench_args) if res is not None]
+        if results:
             return pd.concat(results, ignore_index=True, sort=False)
     return pd.DataFrame({})
