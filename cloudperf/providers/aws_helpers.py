@@ -20,7 +20,7 @@ import pandas as pd
 from dateutil import parser
 from botocore.exceptions import ClientError
 from cloudperf.benchmarks import benchmarks
-from cloudperf.core import sftp_write_file, DictQuery
+from cloudperf.core import sftp_write_file, DictQuery, set_fail_on_exit
 
 
 session = boto3.session.Session()
@@ -425,12 +425,14 @@ def run_benchmarks(args):
                 # this can't be fixed, exit
                 logger.error("Missing parameter while creating {}: {}".format(
                     instance.instanceType, e))
+                set_fail_on_exit()
                 break
 
             if e.response['Error']['Code'] == 'InvalidParameterValue':
                 # certain instances are not allowed to be created
                 logger.error("Error starting instance {}: {}".format(
                     instance.instanceType, e.response['Error']['Message']))
+                set_fail_on_exit()
                 break
 
             if e.response['Error']['Code'] == 'Unsupported':
@@ -438,6 +440,7 @@ def run_benchmarks(args):
                 logger.error("Unsupported instance {}: {}, specs: {}".format(
                     instance.instanceType, e.response['Error']['Message'],
                     base64.b64encode(pickle.dumps(create_specs))))
+                set_fail_on_exit()
                 break
 
             if e.response['Error']['Code'] == 'InstanceCreditSpecification.NotSupported':
@@ -445,6 +448,7 @@ def run_benchmarks(args):
                 # we would get inconsistent results, so skip them.
                 logger.error("{} doesn't support unlimited credits: {}".format(
                     instance.instanceType, e.response['Error']['Message']))
+                set_fail_on_exit()
                 break
 
             logger.error("Other error while creating {}: {}, code: {}".format(

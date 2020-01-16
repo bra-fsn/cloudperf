@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 import signal
 import traceback
 import click
@@ -7,6 +8,8 @@ import pandas as pd
 import pytimeparse
 import boto3
 from cloudperf import get_prices, get_performance, get_combined, prices_url, performance_url, terminate_instances
+from cloudperf.core import fail_on_exit
+
 try:
     import faulthandler
     faulthandler.register(signal.SIGUSR1)
@@ -88,6 +91,8 @@ def write_prices(prices, file, s3_bucket, update):
     df.to_json(file, orient='records', compression=get_comp(file), date_unit='s')
     if s3_bucket is not None:
         s3_upload(s3_bucket, file)
+    if fail_on_exit():
+        sys.exit(1)
 
 
 @main.command()
@@ -119,6 +124,8 @@ def write_performance(prices, perf, file, s3_bucket, update, expire, terminate, 
     finally:
         if terminate:
             terminate_instances()
+    if fail_on_exit():
+        sys.exit(1)
 
 
 @main.command()
@@ -131,6 +138,8 @@ def write_combined(prices, perf, file, s3_bucket):
     get_combined(prices, perf).to_json(file, orient='records', compression=comp, date_unit='s')
     if s3_bucket is not None:
         s3_upload(s3_bucket, file)
+    if fail_on_exit():
+        sys.exit(1)
 
 
 @main.command()

@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+import os
 import importlib
 import pkgutil
 import cloudperf.providers
@@ -7,6 +8,16 @@ import pandas as pd
 
 prices_url = 'https://cloudperf-data.s3-us-west-2.amazonaws.com/prices.json.gz'
 performance_url = 'https://cloudperf-data.s3-us-west-2.amazonaws.com/performance.json.gz'
+
+
+def set_fail_on_exit():
+    os.environ['FAIL_ON_EXIT'] = '1'
+
+
+def fail_on_exit():
+    if os.environ.get('FAIL_ON_EXIT'):
+        return True
+    return False
 
 
 def sftp_write_file(sftp, name, contents, mode=0o755):
