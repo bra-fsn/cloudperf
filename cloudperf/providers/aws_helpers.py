@@ -27,7 +27,10 @@ logger = logging.getLogger(__name__)
 logger.addHandler(NullHandler())
 
 # blacklist instances (prefixes) until a given date (preview etc)
-instance_blacklist = {'m6g': date(2020, 2, 1)}
+instance_blacklist = {'c6g': date(2020, 4, 1),
+                      'm6g': date(2020, 2, 1),
+                      'r6g': date(2020, 4, 1),
+                      }
 
 # Self-destruct the machine after 2 hours
 userdata_script="""#!/bin/sh
