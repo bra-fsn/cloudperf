@@ -445,7 +445,6 @@ def run_benchmarks(args):
                 logger.error("Unsupported instance {}: {}, specs: {}".format(
                     instance.instanceType, e.response['Error']['Message'],
                     base64.b64encode(json.dumps(create_specs))))
-                set_fail_on_exit()
                 break
 
             if e.response['Error']['Code'] == 'InstanceCreditSpecification.NotSupported':
