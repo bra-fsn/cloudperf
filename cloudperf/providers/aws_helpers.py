@@ -33,7 +33,7 @@ instance_blacklist = {'c6g': date(2020, 4, 1),
                       }
 
 # Self-destruct the machine after 2 hours
-userdata_script="""#!/bin/sh
+userdata_script = """#!/bin/sh
 shutdown +120"""
 ssh_keyname = 'batch'
 ssh_user = 'ec2-user'
