@@ -448,12 +448,15 @@ def run_benchmarks(args):
                 break
 
             if e.response['Error']['Code'] == 'InstanceCreditSpecification.NotSupported':
-                # currently t1.micro instance. If we would try to benchmark these,
-                # we would get inconsistent results, so skip them.
+                # remove unlimited credit and try again
                 logger.error("{} doesn't support unlimited credits: {}".format(
                     instance.instanceType, e.response['Error']['Message']))
-                set_fail_on_exit()
-                break
+                if 'CreditSpecification' in create_specs:
+                    del create_specs['CreditSpecification']
+                    retcount += 1
+                    continue
+                else:
+                    break
 
             logger.error("Other error while creating {}: {}, code: {}".format(
                 instance.instanceType, e, DictQuery(e.response).get(['Error', 'Code'])))
