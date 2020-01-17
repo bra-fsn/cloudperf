@@ -8,7 +8,7 @@ import logging
 import functools
 from logging import NullHandler
 import copy
-from datetime import datetime
+from datetime import datetime, date
 from io import StringIO
 from multiprocessing.pool import ThreadPool
 import boto3
@@ -25,6 +25,9 @@ from cloudperf.core import sftp_write_file, DictQuery, set_fail_on_exit
 session = boto3.session.Session()
 logger = logging.getLogger(__name__)
 logger.addHandler(NullHandler())
+
+# blacklist instances (prefixes) until a given date (preview etc)
+instance_blacklist = {'m6g': date(2020, 2, 1)}
 
 # Self-destruct the machine after 2 hours
 userdata_script="""#!/bin/sh
@@ -636,6 +639,13 @@ def get_benchmarks_to_run(instance, perf_df, expire):
     return my_benchmarks
 
 
+def is_blacklisted(instance):
+    for prefix, dt in instance_blacklist.items():
+        if instance.startswith(prefix) and datetime.now().date() <= dt:
+            return True
+    return False
+
+
 def get_ec2_performance(prices_df, perf_df=None, update=None, expire=None, tags=[], **filter_opts):
     # drop spot instances
     prices_df = prices_df.drop(prices_df[prices_df.spot == True].index)
@@ -644,6 +654,8 @@ def get_ec2_performance(prices_df, perf_df=None, update=None, expire=None, tags=
 
     bench_args = []
     for instance in prices_df.itertuples():
+        if is_blacklisted(instance.instanceType):
+            continue
         ami = aws_get_latest_ami(arch=instance.cpu_arch)
         if perf_df is not None and update:
             benchmarks_to_run = get_benchmarks_to_run(instance, perf_df, expire)
