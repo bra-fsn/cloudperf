@@ -437,6 +437,11 @@ def run_benchmarks(args):
                 # certain instances are not allowed to be created
                 logger.error("Error starting instance {}: {}".format(
                     instance.instanceType, e.response['Error']['Message']))
+                if retcount == 0:
+                    # retry with on demand
+                    create_specs = specs
+                    retcount += 1
+                    continue
                 set_fail_on_exit()
                 break
 
