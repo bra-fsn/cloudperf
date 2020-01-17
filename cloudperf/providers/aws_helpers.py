@@ -30,6 +30,7 @@ logger.addHandler(NullHandler())
 instance_blacklist = {'c6g': date(2020, 4, 1),
                       'm6g': date(2020, 2, 1),
                       'r6g': date(2020, 4, 1),
+                      'cc2.8xlarge': date(9999, 1, 1),
                       }
 
 # Self-destruct the machine after 2 hours
