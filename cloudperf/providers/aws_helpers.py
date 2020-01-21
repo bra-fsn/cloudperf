@@ -666,6 +666,7 @@ def get_ec2_performance(prices_df, perf_df=None, update=None, expire=None, tags=
     bench_args = []
     for instance in prices_df.itertuples():
         if is_blacklisted(instance.instanceType):
+            logger.info("Skipping blacklisted instance: {}".format(instance.instanceType))
             continue
         ami = aws_get_latest_ami(arch=instance.cpu_arch)
         if perf_df is not None and update:
@@ -674,6 +675,7 @@ def get_ec2_performance(prices_df, perf_df=None, update=None, expire=None, tags=
             benchmarks_to_run = benchmarks
 
         if not benchmarks_to_run:
+            logger.info("Skipping already benchmarked instance: {}".format(instance.instanceType))
             # leave this instance out if there is no benchmark to run
             continue
         ami = aws_get_latest_ami(arch=instance.cpu_arch)
