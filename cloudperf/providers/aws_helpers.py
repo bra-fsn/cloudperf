@@ -449,7 +449,7 @@ def run_benchmarks(args):
                 # certain instances are not allowed to be created
                 logger.error("Unsupported instance {}: {}, specs: {}".format(
                     instance.instanceType, e.response['Error']['Message'],
-                    base64.b64encode(json.dumps(create_specs))))
+                    base64.b64encode(json.dumps(create_specs).encode('utf-8'))))
                 break
 
             if e.response['Error']['Code'] == 'InstanceCreditSpecification.NotSupported':
