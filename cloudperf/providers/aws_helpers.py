@@ -299,7 +299,7 @@ def get_ec2_prices(**filter_opts):
             continue
         vcpu = int(data['product']['attributes']['vcpu'])
         memory = aws_parse_memory(data['product']['attributes']['memory'])
-        region = region_map.get(data['product']['attributes']['location'])
+        region = region_map[data['product']['attributes']['location']]
         params[instance_type] = data['product']['attributes']
         params[instance_type].update({'vcpu': vcpu, 'memory': memory, 'region': region,
                                       'cpu_arch': aws_get_cpu_arch(data),
