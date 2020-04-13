@@ -303,7 +303,7 @@ def get_ec2_prices(**filter_opts):
         try:
             region = region_map[data['product']['attributes']['location']]
         except KeyError:
-            print(f""""{data['product']['attributes']['location']}" missing from region_map, """
+            print(f""""{data['product']['attributes']['location']}" is missing from region_map, """
                   'please update (for eg. from https://aws.amazon.com/ec2/pricing/on-demand/, '
                   'inspecting the region dropdown, or https://docs.aws.amazon.com/general/latest/gr/rande.html)')
             sys.exit(1)
