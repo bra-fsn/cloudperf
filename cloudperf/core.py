@@ -124,9 +124,10 @@ def get_combined(prices=prices_url, perf=performance_url, maxcpu=False, spot_dur
     prices_df = get_prices(prices=prices)
     perf_df = get_performance(prices=prices, perf=perf, maxcpu=maxcpu)
     combined_df = perf_df.merge(prices_df, how='left', on=['provider', 'instanceType'], suffixes=('', '_prices'))
-    duration_field = f'price_{spot_duration}h'
-    if spot_duration and duration_field in combined_df:
-        combined_df.loc[combined_df.spot, 'price'] = combined_df[duration_field]
+    if spot_duration:
+        duration_field = f'price_{spot_duration:.0f}h'
+        if duration_field in combined_df:
+            combined_df.loc[combined_df.spot, 'price'] = combined_df[duration_field]
 
     combined_df['perf/price/cpu'] = combined_df['benchmark_score']/combined_df['price']/combined_df['benchmark_cpus']
     combined_df['perf/price'] = combined_df['benchmark_score']/combined_df['price']
