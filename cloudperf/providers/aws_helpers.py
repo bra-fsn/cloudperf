@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 import base64
 import re
+import sys
 import json
 import time
 import threading
@@ -299,7 +300,13 @@ def get_ec2_prices(**filter_opts):
             continue
         vcpu = int(data['product']['attributes']['vcpu'])
         memory = aws_parse_memory(data['product']['attributes']['memory'])
-        region = region_map[data['product']['attributes']['location']]
+        try:
+            region = region_map[data['product']['attributes']['location']]
+        except KeyError:
+            print(f""""{data['product']['attributes']['location']}" missing from region_map, """
+                  'please update (for eg. from https://aws.amazon.com/ec2/pricing/on-demand/, '
+                  'inspecting the region dropdown, or https://docs.aws.amazon.com/general/latest/gr/rande.html)')
+            sys.exit(1)
         params[instance_type] = data['product']['attributes']
         params[instance_type].update({'vcpu': vcpu, 'memory': memory, 'region': region,
                                       'cpu_arch': aws_get_cpu_arch(data),
