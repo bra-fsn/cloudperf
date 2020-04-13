@@ -120,10 +120,14 @@ def get_performance(prices=None, perf=None, update=False, expire=False, tags=[],
 
 
 @cachetools.cached(cache={})
-def get_combined(prices=prices_url, perf=performance_url, maxcpu=False):
+def get_combined(prices=prices_url, perf=performance_url, maxcpu=False, spot_duration=None):
     prices_df = get_prices(prices=prices)
     perf_df = get_performance(prices=prices, perf=perf, maxcpu=maxcpu)
     combined_df = perf_df.merge(prices_df, how='left', on=['provider', 'instanceType'], suffixes=('', '_prices'))
+    duration_field = f'price_{spot_duration}h'
+    if spot_duration and duration_field in combined_df:
+        combined_df.loc[combined_df.spot, 'price'] = combined_df[duration_field]
+
     combined_df['perf/price/cpu'] = combined_df['benchmark_score']/combined_df['price']/combined_df['benchmark_cpus']
     combined_df['perf/price'] = combined_df['benchmark_score']/combined_df['price']
 
