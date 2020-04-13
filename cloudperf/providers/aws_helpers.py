@@ -7,6 +7,7 @@ import time
 import threading
 import logging
 import functools
+import collections
 from logging import NullHandler
 import copy
 from datetime import datetime, date
@@ -26,6 +27,9 @@ from cloudperf.core import sftp_write_file, DictQuery, set_fail_on_exit
 session = boto3.session.Session()
 logger = logging.getLogger(__name__)
 logger.addHandler(NullHandler())
+
+# get current defined-duration spot prices from here
+spot_js = 'https://spot-price.s3.amazonaws.com/spotblocks-generic.js'
 
 # blacklist instances (prefixes) until a given date (preview etc)
 instance_blacklist = {'c6g': date(2020, 4, 1),
@@ -271,6 +275,57 @@ def get_ec2_instances(**filter_opts):
     return instances
 
 
+def get_ec2_defined_duration_prices():
+    """Get AWS defined-duration prices from the web. Currently there's no
+    API for this, so we'll use the JavaScript used by the public EC2 spot
+    pricing page: https://aws.amazon.com/ec2/spot/pricing/
+    We deliberately lack error handling here, so we can detect any failures in
+    the parsing process.
+    """
+
+    r = requests.get(spot_js)
+    # this is JavaScript, so we have to parse data out from it
+    js = r.text
+    data = json.loads(js[js.find('{'):js.rfind('}')+1])
+
+    # create a structure of region:instance_type:duration prices similar to this:
+    # {'us-west-2': {'g4dn.xlarge': {1: 0.307,
+    #                                2: 0.335,
+    #                                3: 0.349,
+    #                                4: 0.363,
+    #                                5: 0.377,
+    #                                6: 0.391}}}
+    # the keys in the instance's dictionary is the duration in hours, where
+    # we fill up the missing durations in the input data with a linear estimation
+    block_data = collections.defaultdict(lambda: collections.defaultdict(dict))
+    for region_data in data['config']['regions']:
+        region = region_data['region']
+        for instance_data in region_data['instanceTypes']:
+            for instance in instance_data['sizes']:
+                instance_type = instance['size']
+                for duration_data in instance['valueColumns']:
+                    # name is like '1 hour' or '6 hours'
+                    m = re.search('[0-9]+', duration_data['name'])
+                    if not m:
+                        continue
+                    duration = int(m.group(0))
+                    block_data[region][instance_type][duration] = float(duration_data['prices']['USD'])
+        # fill up gaps in defined durations by estimating the hourly price
+        for instance_type, instance_data in block_data[region].items():
+            min_duration = min(instance_data.keys())
+            max_duration = max(instance_data.keys())
+            min_price = instance_data[min_duration]
+            max_price = instance_data[max_duration]
+            step = (max_price-min_price)/max_duration
+            for i in range(min_duration, max_duration):
+                if i in instance_data:
+                    continue
+                # round to 3 digits precision
+                instance_data[i] = round(min_price+step*i, 3)
+
+    return block_data
+
+
 def get_ec2_prices(**filter_opts):
     """Get AWS instance prices according to the given filter criteria
 
@@ -319,6 +374,10 @@ def get_ec2_prices(**filter_opts):
         # we couldn't find any matching instances
         return prices
 
+    # get actual defined-duration spot prices from the web, until the pricing
+    # API supports these...
+    block_prices = get_ec2_defined_duration_prices()
+
     for region in get_regions():
         ec2 = session.client('ec2', region_name=region)
         for data in boto3_paginate(ec2.describe_spot_price_history, InstanceTypes=list(params.keys()),
@@ -326,6 +385,9 @@ def get_ec2_prices(**filter_opts):
             instance_type = data['InstanceType']
             d = copy.deepcopy(params[instance_type])
             d.update({'price': float(data['SpotPrice']), 'spot': True, 'spot-az': data['AvailabilityZone'], 'region': region})
+            for duration, price in DictQuery(block_prices).get([region, instance_type], {}).items():
+                # add spot blocked duration prices, if any
+                d.update({f'price_{duration}h': price})
             prices.append(d)
 
     return pd.DataFrame.from_dict(prices)
