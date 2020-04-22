@@ -5,6 +5,7 @@ from cloudperf.providers import aws_helpers
 # static map until Amazon can provide the name in boto3 along with the region
 # code...
 region_map = {
+    'Africa (Cape Town)': 'af-south-1',
     'Asia Pacific (Hong Kong)': 'ap-east-1',
     'Asia Pacific (Mumbai)': 'ap-south-1',
     'Asia Pacific (Osaka-Local)': 'ap-northeast-3',
@@ -27,7 +28,8 @@ region_map = {
     'US East (Ohio)': 'us-east-2',
     'US West (Los Angeles)': 'us-west-2-lax-1',
     'US West (N. California)': 'us-west-1',
-    'US West (Oregon)': 'us-west-2'}
+    'US West (Oregon)': 'us-west-2'
+}
 
 
 class CloudProvider(object):
