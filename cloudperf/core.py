@@ -62,7 +62,6 @@ def get_providers():
     return providers
 
 
-@cachetools.cached(cache={})
 def get_prices(prices=None, update=False):
     # if we got a stored file and update is True, merge the two by overwriting
     # old data with new (and leaving not updated old data intact)
@@ -92,9 +91,6 @@ def args_cache_key(*args, **kw):
     return tuple(args)
 
 
-# list is unhashable, so we use only the positional args for the cache key.
-# This means tags have to be specified as a kw arg.
-@cachetools.cached(cache={}, key=args_cache_key)
 def get_performance(prices=None, perf=None, update=False, expire=False, tags=[], maxcpu=False):
     # if we got a stored file and update is True, merge the two by overwriting
     # old data with new (and leaving not updated old data intact).
@@ -119,7 +115,6 @@ def get_performance(prices=None, perf=None, update=False, expire=False, tags=[],
         return resdf
 
 
-@cachetools.cached(cache={})
 def get_combined(prices=prices_url, perf=performance_url, maxcpu=False, spot_duration=None):
     prices_df = get_prices(prices=prices)
     perf_df = get_performance(prices=prices, perf=perf, maxcpu=maxcpu)
