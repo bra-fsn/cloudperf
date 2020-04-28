@@ -3,13 +3,13 @@ on: push
 jobs:
   build-n-publish:
     name: Build and publish distribution to PyPI
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@master
-    - name: Set up Python 3.8
+    - name: Set up Python 3
       uses: actions/setup-python@v1
       with:
-        python-version: 3.8
+        python-version: '3.x'
     - name: Build a source tarball
       run: >-
         python setup.py sdist
