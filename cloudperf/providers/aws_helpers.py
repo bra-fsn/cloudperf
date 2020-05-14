@@ -550,7 +550,7 @@ def run_benchmarks(args):
     threading.current_thread().name = instance_id
 
     logger.info(
-        "Waiting for instance {} to be ready".format(instance.instanceType))
+        "Waiting for instance {} to be ready. AMI: {}".format(instance.instanceType, ami))
     # wait for the instance
     try:
         waiter = ec2.get_waiter('instance_running')
