@@ -93,13 +93,10 @@ def aws_ping(regions):
 
 
 @cachetools.cached(cache={})
-def aws_get_parameter(name):
-    ssm = session.client('ssm', region_name=aws_get_region())
-    res = ssm.get_parameter(Name=name, WithDecryption=True)
-    try:
-        return json.loads(res['Parameter']['Value'])
-    except Exception:
-        return res['Parameter']['Value']
+def aws_get_secret(name):
+    sm = session.client('secretsmanager', region_name=aws_get_region())
+    res = sm.get_secret_value(SecretId=name)
+    return res['SecretString']
 
 
 def aws_get_cpu_arch(instance):
@@ -566,7 +563,7 @@ def run_benchmarks(args):
     # give 5 secs before trying ssh
     time.sleep(5)
     pkey = paramiko.RSAKey.from_private_key(
-        StringIO(aws_get_parameter('/ssh_keys/{}'.format(ssh_keyname))))
+        StringIO(aws_get_secret('ssh_keys/{}'.format(ssh_keyname))))
     ssh = get_ssh_connection(ec2_inst, ssh_user, pkey, ssh_get_conn_timeout)
     if ssh is None:
         logger.error("Couldn't open an ssh connection, terminating instance")
