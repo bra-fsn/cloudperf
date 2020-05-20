@@ -323,7 +323,7 @@ def get_ec2_defined_duration_prices():
     return block_data
 
 
-def get_ec2_prices(**filter_opts):
+def get_ec2_prices(fail_on_missing_regions=False, **filter_opts):
     """Get AWS instance prices according to the given filter criteria
 
     Args:
@@ -337,6 +337,7 @@ def get_ec2_prices(**filter_opts):
     prices = []
     params = {}
 
+    missing_regions = set()
     for data in get_ec2_instances(**filter_opts):
         try:
             instance_type = data['product']['attributes']['instanceType']
@@ -355,10 +356,7 @@ def get_ec2_prices(**filter_opts):
         try:
             region = region_map[data['product']['attributes']['location']]
         except KeyError:
-            print(f""""{data['product']['attributes']['location']}" is missing from region_map, """
-                  'please update (for eg. from https://aws.amazon.com/ec2/pricing/on-demand/, '
-                  'inspecting the region dropdown, or https://docs.aws.amazon.com/general/latest/gr/rande.html)')
-            sys.exit(1)
+            missing_regions.add(data['product']['attributes']['location'])
         params[instance_type] = data['product']['attributes']
         params[instance_type].update({'vcpu': vcpu, 'memory': memory, 'region': region,
                                       'cpu_arch': aws_get_cpu_arch(data),
@@ -366,6 +364,14 @@ def get_ec2_prices(**filter_opts):
         d = {'price': price, 'spot': False, 'spot-az': None}
         d.update(params[instance_type])
         prices.append(d)
+
+    if fail_on_missing_regions and missing_regions:
+        print('The following regions are missing from aws.region_map, please '
+              'update (for eg. from https://aws.amazon.com/ec2/pricing/on-demand/, '
+              'inspecting the region dropdown, or '
+              'https://docs.aws.amazon.com/general/latest/gr/rande.html)')
+        print(*missing_regions, sep='\n')
+        sys.exit(1)
 
     if not prices:
         # we couldn't find any matching instances

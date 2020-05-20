@@ -84,10 +84,13 @@ def df_filter(df, filters):
 @click.option('--update/--no-update',
               help='Read file first and update it with new data, leaving disappeared entries there for historical reasons',
               default=True, show_default=True)
-def write_prices(prices, file, s3_bucket, update):
+@click.option('--fail-on-missing-regions/--no-fail-on-missing-regions',
+              help='Fail if there are missing regions in the region map',
+              default=False, show_default=True)
+def write_prices(prices, file, s3_bucket, update, fail_on_missing_regions):
     if not update:
         prices = None
-    df = get_prices(prices, update)
+    df = get_prices(prices, update, fail_on_missing_regions=fail_on_missing_regions)
     df.to_json(file, orient='records', compression=get_comp(file), date_unit='s')
     if s3_bucket is not None:
         s3_upload(s3_bucket, file)

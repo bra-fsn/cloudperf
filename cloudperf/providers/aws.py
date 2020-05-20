@@ -40,10 +40,10 @@ class CloudProvider(object):
                'tenancy': 'Shared'
                }
 
-    def get_prices(self, **filters):
+    def get_prices(self, fail_on_missing_regions=False, **filters):
         if not filters:
             filters = self.filters
-        instances = aws_helpers.get_ec2_prices(**filters)
+        instances = aws_helpers.get_ec2_prices(fail_on_missing_regions=fail_on_missing_regions, **filters)
         # add a provider column
         instances['provider'] = self.provider
 

@@ -62,12 +62,12 @@ def get_providers():
     return providers
 
 
-def get_prices(prices=None, update=False):
+def get_prices(prices=None, update=False, fail_on_missing_regions=False):
     # if we got a stored file and update is True, merge the two by overwriting
     # old data with new (and leaving not updated old data intact)
     if prices and update:
         old = pd.read_json(prices, orient='records')
-        new = pd.concat([cp.get_prices() for cp in get_providers()], ignore_index=True, sort=False)
+        new = pd.concat([cp.get_prices(fail_on_missing_regions=fail_on_missing_regions) for cp in get_providers()], ignore_index=True, sort=False)
         if new.empty:
             return old
         # update rows which have the same values in the following columns
@@ -75,7 +75,7 @@ def get_prices(prices=None, update=False):
         return new.set_index(indices).combine_first(old.set_index(indices)).reset_index()
     if prices:
         return pd.read_json(prices, orient='records')
-    return pd.concat([cp.get_prices() for cp in get_providers()], ignore_index=True, sort=False)
+    return pd.concat([cp.get_prices(fail_on_missing_regions=fail_on_missing_regions) for cp in get_providers()], ignore_index=True, sort=False)
 
 
 def args_cache_key(*args, **kw):
