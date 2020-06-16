@@ -331,3 +331,6 @@ for a given price at the time of the execution.
 
 The actual prices can be browsed here:
 https://bra-fsn.github.io/cloudperf/prices.html
+
+To compare the performance of instances see:
+https://bra-fsn.github.io/cloudperf/benchmarks/index.html
