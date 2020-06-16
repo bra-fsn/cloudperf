@@ -1,0 +1,12 @@
+html, body {
+  height: 100%;
+}
+
+.filter{
+  font-size: 12px;
+  min-height: 15px;
+}
+
+.chart{
+    height: 90%;
+}
