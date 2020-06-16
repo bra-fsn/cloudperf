@@ -101,7 +101,7 @@ def write_prices(prices, file, s3_bucket, update, fail_on_missing_regions):
 @main.command()
 @click.option('--prices', help='Prices URL (pandas.read_json)', default=prices_url, show_default=True)
 @click.option('--perf', help='Performance URL (pandas.read_json)', default=performance_url, show_default=True)
-@click.option('--file', help='Write performance data to this file', required=True)
+@click.option('--file', help='Write performance data to this file', default='/tmp/performance.json.gz')
 @click.option('--s3-bucket', help='Write data to this s3 bucket')
 @click.option('--update/--no-update',
               help='Read file first and update it with new data, leaving disappeared entries there for historical reasons',
