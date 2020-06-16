@@ -135,12 +135,25 @@ def write_performance(prices, perf, file, s3_bucket, update, expire, terminate, 
 @click.option('--prices', help='Prices URL (pandas.read_json)', default=prices_url, show_default=True)
 @click.option('--perf', help='Performance URL (pandas.read_json)', default=performance_url, show_default=True)
 @click.option('--file', help='Write combined perf/price data to this file', default='/tmp/combined.json.gz')
+@click.option('--web-file', help='Write performance data for web serving to this file', default='/tmp/webperf.json')
 @click.option('--s3-bucket', help='Write data to this s3 bucket')
-def write_combined(prices, perf, file, s3_bucket):
+def write_combined(prices, perf, file, web_file, s3_bucket):
     comp = get_comp(file)
+    web_cols = ['instanceType', 'benchmark_id', 'vcpu', 'physicalProcessor']
+
     get_combined(prices, perf).to_json(file, orient='records', compression=comp, date_unit='s')
     if s3_bucket is not None:
         s3_upload(s3_bucket, file)
+
+    df = get_combined(prices, perf, maxcpu=True)
+    comp = get_comp(web_file)
+    # only keep these columns for the web file and also reduce
+    # the output to one benchmark result per instance
+    df = df[web_cols + ['benchmark_score']].drop_duplicates(subset=web_cols)
+    df.to_json(web_file, orient='records', compression=comp, date_unit='s')
+    if s3_bucket is not None:
+        s3_upload(s3_bucket, web_file)
+
     if fail_on_exit():
         sys.exit(1)
 
