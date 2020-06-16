@@ -43,7 +43,8 @@ userdata_script = """#!/bin/sh
 shutdown +120"""
 ssh_keyname = 'batch'
 ssh_user = 'ec2-user'
-ssh_get_conn_timeout = 600
+# metal instances may need a lot of time to start
+ssh_get_conn_timeout = 30*60
 ssh_exec_timeout = 600
 ec2_specs = {'KeyName': ssh_keyname, 'SecurityGroups': ['tech-ssh'],
              'MaxCount': 1, 'MinCount': 1, 'Monitoring': {'Enabled': False},
