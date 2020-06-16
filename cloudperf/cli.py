@@ -134,7 +134,7 @@ def write_performance(prices, perf, file, s3_bucket, update, expire, terminate, 
 @main.command()
 @click.option('--prices', help='Prices URL (pandas.read_json)', default=prices_url, show_default=True)
 @click.option('--perf', help='Performance URL (pandas.read_json)', default=performance_url, show_default=True)
-@click.option('--file', help='Write combined perf/price data to this file', required=True)
+@click.option('--file', help='Write combined perf/price data to this file', default='/tmp/combined.json.gz')
 @click.option('--s3-bucket', help='Write data to this s3 bucket')
 def write_combined(prices, perf, file, s3_bucket):
     comp = get_comp(file)
