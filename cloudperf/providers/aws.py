@@ -20,16 +20,18 @@ region_map = {
     'EU (Frankfurt)': 'eu-central-1',
     'EU (Ireland)': 'eu-west-1',
     'EU (London)': 'eu-west-2',
+    'EU (Milan)': 'eu-south-1',
     'EU (Paris)': 'eu-west-3',
     'EU (Stockholm)': 'eu-north-1',
-    'EU (Milan)': 'eu-south-1',
     'Middle East (Bahrain)': 'me-south-1',
     'South America (Sao Paulo)': 'sa-east-1',
     'US East (N. Virginia)': 'us-east-1',
     'US East (Ohio)': 'us-east-2',
+    'US East (Verizon) - Boston': 'us-east-1-wl1',
     'US West (Los Angeles)': 'us-west-2-lax-1',
     'US West (N. California)': 'us-west-1',
-    'US West (Oregon)': 'us-west-2'
+    'US West (Oregon)': 'us-west-2',
+    'US West (Verizon) - San Francisco Bay Area': 'us-west-2-wl1',
 }
 
 
