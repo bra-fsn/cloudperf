@@ -334,7 +334,7 @@ def get_ec2_prices(fail_on_missing_regions=False, **filter_opts):
         DataFrame with instance attributes and pricing
 
     """
-    from cloudperf.providers.aws import region_map
+    from cloudperf.providers.aws import region_map, location_map
     prices = []
     params = {}
 
@@ -389,6 +389,7 @@ def get_ec2_prices(fail_on_missing_regions=False, **filter_opts):
             instance_type = data['InstanceType']
             d = copy.deepcopy(params[instance_type])
             d.update({'price': float(data['SpotPrice']), 'spot': True, 'spot-az': data['AvailabilityZone'], 'region': region})
+            d.update({'location': location_map[region]})
             for duration, price in DictQuery(block_prices).get([region, instance_type], {}).items():
                 # add spot blocked duration prices, if any
                 d.update({f'price_{duration}h': price})

@@ -37,6 +37,8 @@ region_map = {
     'US West (Verizon) - San Francisco Bay Area': 'us-west-2-wl1',
 }
 
+location_map = {v: k for k, v in region_map.items()}
+
 
 class CloudProvider(object):
     provider = 'aws'
