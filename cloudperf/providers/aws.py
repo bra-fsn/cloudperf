@@ -25,6 +25,9 @@ region_map = {
     'EU (Stockholm)': 'eu-north-1',
     'Middle East (Bahrain)': 'me-south-1',
     'South America (Sao Paulo)': 'sa-east-1',
+    'US East (Boston)': 'us-east-1-iah-1',
+    'US East (Houston)': 'us-east-1-iah-1',
+    'US East (Miami)': 'us-east-1-mia-1',
     'US East (N. Virginia)': 'us-east-1',
     'US East (Ohio)': 'us-east-2',
     'US East (Verizon) - Atlanta': 'us-east-1-wl1-atl1',
@@ -36,6 +39,7 @@ region_map = {
     'US West (Los Angeles)': 'us-west-2-lax-1',
     'US West (N. California)': 'us-west-1',
     'US West (Oregon)': 'us-west-2',
+    'US West (Verizon) - Las Vegas': 'us-west-2-wl1-las1',
     'US West (Verizon) - San Francisco Bay Area': 'us-west-2-wl1',
 }
 
