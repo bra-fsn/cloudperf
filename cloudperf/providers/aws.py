@@ -13,6 +13,7 @@ region_map = {
     'Asia Pacific (Singapore)': 'ap-southeast-1',
     'Asia Pacific (Sydney)': 'ap-southeast-2',
     'Asia Pacific (Tokyo)': 'ap-northeast-1',
+    'Asia Pacific (KDDI) - Tokyo': 'ap-northeast-1-wl1-nrt1',
     'AWS GovCloud (US-East)': 'us-gov-east-1',
     'AWS GovCloud (US-West)': 'us-gov-west-1',
     'AWS GovCloud (US)': 'us-gov-west-1',
