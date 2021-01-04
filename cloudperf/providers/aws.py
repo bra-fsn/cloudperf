@@ -41,8 +41,10 @@ region_map = {
     'US West (Los Angeles)': 'us-west-2-lax-1',
     'US West (N. California)': 'us-west-1',
     'US West (Oregon)': 'us-west-2',
+    'US West (Verizon) - Denver': 'us-west-2-wl1-den1',
     'US West (Verizon) - Las Vegas': 'us-west-2-wl1-las1',
     'US West (Verizon) - San Francisco Bay Area': 'us-west-2-wl1',
+    'US West (Verizon) - Seattle': 'us-west-2-wl1-sea1',
 }
 
 location_map = {v: k for k, v in region_map.items()}
