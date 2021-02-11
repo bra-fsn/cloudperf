@@ -7,6 +7,7 @@ from cloudperf.providers import aws_helpers
 region_map = {
     'Africa (Cape Town)': 'af-south-1',
     'Asia Pacific (Hong Kong)': 'ap-east-1',
+    'Asia Pacific (KDDI) - Osaka': 'ap-northeast-1-wl1-kix1',
     'Asia Pacific (KDDI) - Tokyo': 'ap-northeast-1-wl1-nrt1',
     'Asia Pacific (Mumbai)': 'ap-south-1',
     'Asia Pacific (Osaka-Local)': 'ap-northeast-3',
