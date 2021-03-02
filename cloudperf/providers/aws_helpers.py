@@ -43,7 +43,8 @@ userdata_script = """#!/bin/sh
 shutdown +120"""
 ssh_keyname = 'batch'
 ssh_user = 'ec2-user'
-ssh_get_conn_timeout = 600
+# metal instances may need a lot of time to start
+ssh_get_conn_timeout = 30*60
 ssh_exec_timeout = 600
 ec2_specs = {'KeyName': ssh_keyname, 'SecurityGroups': ['tech-ssh'],
              'MaxCount': 1, 'MinCount': 1, 'Monitoring': {'Enabled': False},
@@ -93,13 +94,10 @@ def aws_ping(regions):
 
 
 @cachetools.cached(cache={})
-def aws_get_parameter(name):
-    ssm = session.client('ssm', region_name=aws_get_region())
-    res = ssm.get_parameter(Name=name, WithDecryption=True)
-    try:
-        return json.loads(res['Parameter']['Value'])
-    except Exception:
-        return res['Parameter']['Value']
+def aws_get_secret(name):
+    sm = session.client('secretsmanager', region_name=aws_get_region())
+    res = sm.get_secret_value(SecretId=name)
+    return res['SecretString']
 
 
 def aws_get_cpu_arch(instance):
@@ -326,7 +324,7 @@ def get_ec2_defined_duration_prices():
     return block_data
 
 
-def get_ec2_prices(**filter_opts):
+def get_ec2_prices(fail_on_missing_regions=False, **filter_opts):
     """Get AWS instance prices according to the given filter criteria
 
     Args:
@@ -336,10 +334,11 @@ def get_ec2_prices(**filter_opts):
         DataFrame with instance attributes and pricing
 
     """
-    from cloudperf.providers.aws import region_map
+    from cloudperf.providers.aws import region_map, location_map
     prices = []
     params = {}
 
+    missing_regions = set()
     for data in get_ec2_instances(**filter_opts):
         try:
             instance_type = data['product']['attributes']['instanceType']
@@ -358,10 +357,7 @@ def get_ec2_prices(**filter_opts):
         try:
             region = region_map[data['product']['attributes']['location']]
         except KeyError:
-            print(f""""{data['product']['attributes']['location']}" is missing from region_map, """
-                  'please update (for eg. from https://aws.amazon.com/ec2/pricing/on-demand/, '
-                  'inspecting the region dropdown, or https://docs.aws.amazon.com/general/latest/gr/rande.html)')
-            sys.exit(1)
+            missing_regions.add(data['product']['attributes']['location'])
         params[instance_type] = data['product']['attributes']
         params[instance_type].update({'vcpu': vcpu, 'memory': memory, 'region': region,
                                       'cpu_arch': aws_get_cpu_arch(data),
@@ -369,6 +365,14 @@ def get_ec2_prices(**filter_opts):
         d = {'price': price, 'spot': False, 'spot-az': None}
         d.update(params[instance_type])
         prices.append(d)
+
+    if fail_on_missing_regions and missing_regions:
+        print('The following regions are missing from aws.region_map, please '
+              'update (for eg. from https://aws.amazon.com/ec2/pricing/on-demand/, '
+              'inspecting the region dropdown, or '
+              'https://docs.aws.amazon.com/general/latest/gr/rande.html)')
+        print(*missing_regions, sep='\n')
+        sys.exit(1)
 
     if not prices:
         # we couldn't find any matching instances
@@ -385,6 +389,7 @@ def get_ec2_prices(**filter_opts):
             instance_type = data['InstanceType']
             d = copy.deepcopy(params[instance_type])
             d.update({'price': float(data['SpotPrice']), 'spot': True, 'spot-az': data['AvailabilityZone'], 'region': region})
+            d.update({'location': location_map[region]})
             for duration, price in DictQuery(block_prices).get([region, instance_type], {}).items():
                 # add spot blocked duration prices, if any
                 d.update({f'price_{duration}h': price})
@@ -550,7 +555,7 @@ def run_benchmarks(args):
     threading.current_thread().name = instance_id
 
     logger.info(
-        "Waiting for instance {} to be ready".format(instance.instanceType))
+        "Waiting for instance {} to be ready. AMI: {}".format(instance.instanceType, ami))
     # wait for the instance
     try:
         waiter = ec2.get_waiter('instance_running')
@@ -566,7 +571,7 @@ def run_benchmarks(args):
     # give 5 secs before trying ssh
     time.sleep(5)
     pkey = paramiko.RSAKey.from_private_key(
-        StringIO(aws_get_parameter('/ssh_keys/{}'.format(ssh_keyname))))
+        StringIO(aws_get_secret('ssh_keys/{}'.format(ssh_keyname))))
     ssh = get_ssh_connection(ec2_inst, ssh_user, pkey, ssh_get_conn_timeout)
     if ssh is None:
         logger.error("Couldn't open an ssh connection, terminating instance")
