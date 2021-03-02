@@ -120,6 +120,7 @@ def get_combined(prices=prices_url, perf=performance_url, maxcpu=False, spot_dur
     perf_df = get_performance(prices=prices, perf=perf, maxcpu=maxcpu)
     combined_df = perf_df.merge(prices_df, how='left', on=['provider', 'instanceType'], suffixes=('', '_prices'))
     if spot_duration:
+        combined_df = combined_df.dropna(subset=['spot'])
         duration_field = f'price_{spot_duration:.0f}h'
         if duration_field in combined_df:
             combined_df.loc[combined_df.spot, 'price'] = combined_df[duration_field]
