@@ -10,7 +10,7 @@ region_map = {
     'Asia Pacific (KDDI) - Osaka': 'ap-northeast-1-wl1-kix1',
     'Asia Pacific (KDDI) - Tokyo': 'ap-northeast-1-wl1-nrt1',
     'Asia Pacific (Mumbai)': 'ap-south-1',
-    'Asia Pacific (Osaka-Local)': 'ap-northeast-3',
+    'Asia Pacific (Osaka)': 'ap-northeast-3',
     'Asia Pacific (Seoul)': 'ap-northeast-2',
     'Asia Pacific (Singapore)': 'ap-southeast-1',
     'Asia Pacific (SKT) - Daejeon': 'ap-northeast-2-wl1-cjj1',
