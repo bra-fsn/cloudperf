@@ -26,6 +26,7 @@ region_map = {
     'EU (Milan)': 'eu-south-1',
     'EU (Paris)': 'eu-west-3',
     'EU (Stockholm)': 'eu-north-1',
+    'EU West (Vodafone) - London': 'eu-west-2-wl1-lon1',
     'Middle East (Bahrain)': 'me-south-1',
     'South America (Sao Paulo)': 'sa-east-1',
     'US East (Boston)': 'us-east-1-iah-1',
