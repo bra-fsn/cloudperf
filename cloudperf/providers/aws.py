@@ -42,6 +42,7 @@ region_map = {
     'US East (Verizon) - Miami': 'us-east-1-wl1-mia1',
     'US East (Verizon) - New York': 'us-east-1-wl1-nyc1',
     'US East (Verizon) - Washington DC': 'us-east-1-wl1-was1',
+    'US West (Denver)': 'us-west-2-den-1',
     'US West (Los Angeles)': 'us-west-2-lax-1',
     'US West (N. California)': 'us-west-1',
     'US West (Oregon)': 'us-west-2',
