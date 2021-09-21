@@ -258,6 +258,7 @@ def get_ec2_instances(**filter_opts):
     """
     filters = [{'Type': 'TERM_MATCH', 'Field': k, 'Value': v}
                for k, v in filter_opts.items()]
+    filters.append({'Type': 'TERM_MATCH', 'Field': 'locationType', 'Value': 'AWS Region'})
 
     # currently the pricing API is limited to some regions, so don't waste time
     # on trying to access it on others one by one
