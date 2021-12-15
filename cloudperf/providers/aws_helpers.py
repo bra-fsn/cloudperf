@@ -119,7 +119,8 @@ def aws_get_region():
         return region
     try:
         r = requests.get(
-            'http://169.254.169.254/latest/dynamic/instance-identity/document')
+            'http://169.254.169.254/latest/dynamic/instance-identity/document',
+            timeout=5)
         return r.json().get('region')
     except Exception:
         return None
@@ -206,7 +207,8 @@ def get_region():
         return region
     try:
         r = requests.get(
-            'http://169.254.169.254/latest/dynamic/instance-identity/document')
+            'http://169.254.169.254/latest/dynamic/instance-identity/document',
+            timeout=5)
         return r.json().get('region')
     except Exception:
         return None
@@ -282,7 +284,7 @@ def get_ec2_defined_duration_prices():
     the parsing process.
     """
 
-    r = requests.get(spot_js)
+    r = requests.get(spot_js, timeout=5)
     # this is JavaScript, so we have to parse data out from it
     js = r.text
     data = json.loads(js[js.find('{'):js.rfind('}')+1])
