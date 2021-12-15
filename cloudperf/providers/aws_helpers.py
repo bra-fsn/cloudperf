@@ -337,7 +337,7 @@ def get_ec2_prices(fail_on_missing_regions=False, **filter_opts):
         DataFrame with instance attributes and pricing
 
     """
-    from cloudperf.providers.aws import region_map, location_map
+    from cloudperf.providers.aws import region_to_location, location_to_region
     prices = []
     params = {}
 
@@ -357,9 +357,8 @@ def get_ec2_prices(fail_on_missing_regions=False, **filter_opts):
             continue
         vcpu = int(data['product']['attributes']['vcpu'])
         memory = aws_parse_memory(data['product']['attributes']['memory'])
-        try:
-            region = region_map[data['product']['attributes']['location']]
-        except KeyError:
+        region = location_to_region(data['product']['attributes']['location'])
+        if not region:
             missing_regions.add(data['product']['attributes']['location'])
         params[instance_type] = data['product']['attributes']
         params[instance_type].update({'vcpu': vcpu, 'memory': memory, 'region': region,
@@ -370,10 +369,8 @@ def get_ec2_prices(fail_on_missing_regions=False, **filter_opts):
         prices.append(d)
 
     if fail_on_missing_regions and missing_regions:
-        print('The following regions are missing from aws.region_map, please '
-              'update (for eg. from https://aws.amazon.com/ec2/pricing/on-demand/, '
-              'inspecting the region dropdown, or '
-              'https://docs.aws.amazon.com/general/latest/gr/rande.html)')
+        print("The following regions are missing from botocore's endpoints.json and from "
+              "the baked-in region_map")
         print(*missing_regions, sep='\n')
         sys.exit(1)
 
@@ -392,7 +389,7 @@ def get_ec2_prices(fail_on_missing_regions=False, **filter_opts):
             instance_type = data['InstanceType']
             d = copy.deepcopy(params[instance_type])
             d.update({'price': float(data['SpotPrice']), 'spot': True, 'spot-az': data['AvailabilityZone'], 'region': region})
-            d.update({'location': location_map[region]})
+            d.update({'location': region_to_location(region)})
             for duration, price in DictQuery(block_prices).get([region, instance_type], {}).items():
                 # add spot blocked duration prices, if any
                 d.update({f'price_{duration}h': price})
