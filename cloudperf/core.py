@@ -29,6 +29,11 @@ def sftp_write_file(sftp, name, contents, mode=0o755):
         sftp.chmod(name, mode)
 
 
+def read_json_with_timeout(url, *args, **kwargs):
+    with urlopen(url, timeout=5) as f:
+        return pd.read_json(f, *args, **kwargs)
+
+
 class DictQuery(dict):
     def get(self, keys, default=None):
         val = None
@@ -67,8 +72,7 @@ def get_prices(prices=None, update=False, fail_on_missing_regions=False):
     # if we got a stored file and update is True, merge the two by overwriting
     # old data with new (and leaving not updated old data intact)
     if prices and update:
-        with urlopen(prices, timeout=5) as f:
-            old = pd.read_json(f, orient='records', compression='gzip')
+        old = read_json_with_timeout(prices, orient='records', compression='gzip')
         new = pd.concat([cp.get_prices(fail_on_missing_regions=fail_on_missing_regions) for cp in get_providers()], ignore_index=True, sort=False)
         if new.empty:
             return old
@@ -76,8 +80,7 @@ def get_prices(prices=None, update=False, fail_on_missing_regions=False):
         indices = ['provider', 'instanceType', 'region', 'spot', 'spot-az']
         return new.set_index(indices).combine_first(old.set_index(indices)).reset_index()
     if prices:
-        with urlopen(prices, timeout=5) as f:
-            return pd.read_json(f, orient='records', compression='gzip')
+        return read_json_with_timeout(prices, orient='records', compression='gzip')
     return pd.concat([cp.get_prices(fail_on_missing_regions=fail_on_missing_regions) for cp in get_providers()], ignore_index=True, sort=False)
 
 
@@ -99,8 +102,7 @@ def get_performance(prices=None, perf=None, update=False, expire=False, tags=[],
     # old data with new (and leaving not updated old data intact).
     # if expire is set only update old data if the expiry period is passed
     if perf and update:
-        with urlopen(perf, timeout=5) as f:
-            old = pd.read_json(f, orient='records', compression='gzip')
+        old = read_json_with_timeout(perf, orient='records', compression='gzip')
         new = pd.concat([cp.get_performance(get_prices(prices), old, update, expire, tags=tags) for cp in get_providers()],
                         ignore_index=True, sort=False)
         if new.empty:
@@ -110,8 +112,7 @@ def get_performance(prices=None, perf=None, update=False, expire=False, tags=[],
             indices = ['provider', 'instanceType', 'benchmark_id', 'benchmark_cpus']
             resdf = new.set_index(indices).combine_first(old.set_index(indices)).reset_index()
     elif perf:
-        with urlopen(perf, timeout=5) as f:
-            resdf = pd.read_json(f, orient='records', compression='gzip')
+        resdf = read_json_with_timeout(perf, orient='records', compression='gzip')
     else:
         resdf = pd.concat([cp.get_performance(get_prices(prices), tags=tags) for cp in get_providers()], ignore_index=True, sort=False)
     if maxcpu:
