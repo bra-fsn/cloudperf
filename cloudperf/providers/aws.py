@@ -30,6 +30,7 @@ region_map = {
     "EU (Milan)": "eu-south-1",
     "EU (Paris)": "eu-west-3",
     "EU (Stockholm)": "eu-north-1",
+    "Europe (Zurich)": "eu-central-2",
     "Middle East (Bahrain)": "me-south-1",
     "Middle East (UAE)": "me-central-1",
     "South America (Sao Paulo)": "sa-east-1",
