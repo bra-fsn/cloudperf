@@ -8,6 +8,22 @@ import pandas as pd
 
 prices_url = 'https://cloudperf-data.s3-us-west-2.amazonaws.com/prices.json.gz'
 performance_url = 'https://cloudperf-data.s3-us-west-2.amazonaws.com/performance.json.gz'
+performance_dtypes = {
+    "benchmark_id": "category",
+    "instanceType": "category",
+    "provider": "category",
+}
+prices_dtypes = {
+    "clockSpeed": "category",
+    "cpu_arch": "category",
+    "instanceType": "category",
+    "instanceFamily": "category",
+    "location": "category",
+    "physicalProcessor": "category",
+    "region": "category",
+    "spot-az": "category",
+    "provider": "category",
+}
 
 
 def set_fail_on_exit():
@@ -66,7 +82,7 @@ def get_prices(prices=None, update=False, fail_on_missing_regions=False):
     # if we got a stored file and update is True, merge the two by overwriting
     # old data with new (and leaving not updated old data intact)
     if prices and update:
-        old = pd.read_json(prices, orient='records')
+        old = pd.read_json(prices, orient='records', dtype=prices_dtypes)
         new = pd.concat([cp.get_prices(fail_on_missing_regions=fail_on_missing_regions) for cp in get_providers()], ignore_index=True, sort=False)
         if new.empty:
             return old
@@ -74,7 +90,7 @@ def get_prices(prices=None, update=False, fail_on_missing_regions=False):
         indices = ['provider', 'instanceType', 'region', 'spot', 'spot-az']
         return new.set_index(indices).combine_first(old.set_index(indices)).reset_index()
     if prices:
-        return pd.read_json(prices, orient='records')
+        return pd.read_json(prices, orient='records', dtype=prices_dtypes)
     return pd.concat([cp.get_prices(fail_on_missing_regions=fail_on_missing_regions) for cp in get_providers()], ignore_index=True, sort=False)
 
 
@@ -96,7 +112,7 @@ def get_performance(prices=None, perf=None, update=False, expire=False, tags=[],
     # old data with new (and leaving not updated old data intact).
     # if expire is set only update old data if the expiry period is passed
     if perf and update:
-        old = pd.read_json(perf, orient='records')
+        old = pd.read_json(perf, orient='records', dtype=performance_dtypes)
         new = pd.concat([cp.get_performance(get_prices(prices), old, update, expire, tags=tags) for cp in get_providers()],
                         ignore_index=True, sort=False)
         if new.empty:
@@ -106,13 +122,23 @@ def get_performance(prices=None, perf=None, update=False, expire=False, tags=[],
             indices = ['provider', 'instanceType', 'benchmark_id', 'benchmark_cpus']
             resdf = new.set_index(indices).combine_first(old.set_index(indices)).reset_index()
     elif perf:
-        resdf = pd.read_json(perf, orient='records')
+        resdf = pd.read_json(perf, orient='records', dtype=performance_dtypes)
     else:
         resdf = pd.concat([cp.get_performance(get_prices(prices), tags=tags) for cp in get_providers()], ignore_index=True, sort=False)
+
+    # conserve memory
+    keep_cols = [
+        "provider",
+        "instanceType",
+        "benchmark_id",
+        "benchmark_cpus",
+        "benchmark_score",
+        "date",
+    ]
     if maxcpu:
-        return resdf.sort_values('benchmark_cpus', ascending=False).drop_duplicates(['instanceType', 'benchmark_id'])
+        return resdf.sort_values('benchmark_cpus', ascending=False).drop_duplicates(['instanceType', 'benchmark_id'])[keep_cols]
     else:
-        return resdf
+        return resdf[keep_cols]
 
 
 def get_combined(prices=prices_url, perf=performance_url, maxcpu=False, spot_duration=None):

@@ -104,7 +104,6 @@ def aws_get_cpu_arch(instance):
     # XXX: maybe in the future Amazon will indicate the exact CPU architecture,
     # but until that...
     physproc = DictQuery(instance).get(['product', 'attributes', 'physicalProcessor'], '').lower()
-    procarch = DictQuery(instance).get(['product', 'attributes', 'processorArchitecture'], '').lower()
     instance_type = DictQuery(instance).get(['product', 'attributes', 'instanceType'], '').lower()
     if re.match('^a[0-9]+\.', instance_type) or re.search('aws\s+(graviton.*|)\s*processor', physproc):
         # try to find arm instances
@@ -395,7 +394,24 @@ def get_ec2_prices(fail_on_missing_regions=False, **filter_opts):
                 d.update({f'price_{duration}h': price})
             prices.append(d)
 
-    return pd.DataFrame.from_dict(prices)
+    # conserve memory
+    keep_cols = [
+        "clockSpeed",
+        "cpu_arch",
+        "gpuMemory",
+        "instanceType",
+        "instanceFamily",
+        "location",
+        "memory",
+        "physicalProcessor",
+        "price",
+        "region",
+        "spot",
+        "spot-az",
+        "vcpu",
+        "gpu",
+    ]
+    return pd.DataFrame.from_dict(prices)[keep_cols]
 
 
 def get_ssh_connection(instance, user, pkey, timeout):
@@ -683,8 +699,6 @@ def run_benchmarks(args):
                     score = None
                 results.append({'instanceType': instance.instanceType,
                                 'benchmark_cpus': i, 'benchmark_score': score, 'benchmark_id': name,
-                                'benchmark_name': bench_data.get('name'),
-                                'benchmark_cmd': cmd, 'benchmark_program': bench_data.get('program'),
                                 'date': datetime.now()})
             if 'composefile' in bench_data:
                 stdin, stdout, stderr = ssh.exec_command("docker-compose down -v", timeout=ssh_exec_timeout)

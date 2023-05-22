@@ -110,7 +110,6 @@ class CloudProvider(object):
             return instances
         # add a provider column
         instances['provider'] = self.provider
-
         return instances
 
     def terminate_instances(self):
