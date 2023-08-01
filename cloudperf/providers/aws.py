@@ -12,6 +12,9 @@ ENDPOINTS_URL = "https://raw.githubusercontent.com/boto/botocore/develop/botocor
 
 # botocore's endpoints contain some locations with a different name, so provide a base here
 region_map = {
+    "AWS GovCloud (US)": "us-gov-west-1",
+    "AWS GovCloud (US-East)": "us-gov-east-1",
+    "AWS GovCloud (US-West)": "us-gov-west-1",
     "Africa (Cape Town)": "af-south-1",
     "Asia Pacific (Hong Kong)": "ap-east-1",
     "Asia Pacific (Hyderabad)": "ap-south-2",
@@ -21,9 +24,6 @@ region_map = {
     "Asia Pacific (Singapore)": "ap-southeast-1",
     "Asia Pacific (Sydney)": "ap-southeast-2",
     "Asia Pacific (Tokyo)": "ap-northeast-1",
-    "AWS GovCloud (US-East)": "us-gov-east-1",
-    "AWS GovCloud (US-West)": "us-gov-west-1",
-    "AWS GovCloud (US)": "us-gov-west-1",
     "Canada (Central)": "ca-central-1",
     "EU (Frankfurt)": "eu-central-1",
     "EU (Ireland)": "eu-west-1",
@@ -33,6 +33,7 @@ region_map = {
     "EU (Stockholm)": "eu-north-1",
     "Europe (Spain)": "eu-south-2",
     "Europe (Zurich)": "eu-central-2",
+    "Israel (Tel Aviv)": "il-central-1",
     "Middle East (Bahrain)": "me-south-1",
     "Middle East (UAE)": "me-central-1",
     "South America (Sao Paulo)": "sa-east-1",
