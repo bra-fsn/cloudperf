@@ -25,6 +25,7 @@ region_map = {
     "Asia Pacific (Sydney)": "ap-southeast-2",
     "Asia Pacific (Tokyo)": "ap-northeast-1",
     "Canada (Central)": "ca-central-1",
+    "Canada West (Calgary)": "ca-west-1",
     "EU (Frankfurt)": "eu-central-1",
     "EU (Ireland)": "eu-west-1",
     "EU (London)": "eu-west-2",
