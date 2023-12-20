@@ -1,0 +1,34 @@
+[project]
+name = "cloudperf"
+description = "Relative performance index for cloud services"
+readme = "README.md"
+requires-python = ">=3.8"
+authors = [
+    {name = "NAGY, Attila", email = "nagy.attila@gmail.com" }
+]
+dependencies = [
+    "cachetools",
+    "click>=7.0",
+    "boto3>=1.9.61",
+    "pandas",
+    "requests",
+    "python-dateutil",
+    "paramiko",
+    "pytimeparse",
+]
+dynamic = ["version"]
+classifiers=[
+    "Programming Language :: Python",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/bra-fsn/cloudperf"
+"Source" = "https://github.com/bra-fsn/cloudperf"
+
+[project.scripts]
+cloudperf = "cloudperf.cli:main"
+
+[tool.setuptools.dynamic]
+version = {attr = "cloudperf.__version__"}
