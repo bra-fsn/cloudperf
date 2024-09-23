@@ -1,4 +1,7 @@
 # cloudperf
+
+FYI, for more comprehensive, multi-cloud data, please check out https://sparecores.com/!
+
 ## Measuring the relative performance of cloud resources
 
 Cloudperf is a python helper for running benchmarks on cloud providers'
