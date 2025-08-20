@@ -1,6 +1,6 @@
 # cloudperf
 
-FYI, for more comprehensive, multi-cloud data, please check out https://sparecores.com/!
+This library is deprecated. For more comprehensive, multi-cloud data, please check out https://sparecores.com/ and https://pypi.org/project/sparecores-data/!
 
 ## Measuring the relative performance of cloud resources
 
